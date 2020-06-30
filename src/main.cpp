@@ -274,12 +274,16 @@ void loop()
         }
         else if (c == 'm') {
             char motor_c = command.charAt(1);
-            int speed = command.substring(1).toInt();
+            int speed = command.substring(2).toInt();
             if (motor_c == 'a') {
                 motorA.setSpeed(speed);
+                PROG_SERIAL.print("Motor A: ");
+                PROG_SERIAL.println(speed);
             }
             else if (motor_c == 'b') {
                 motorB.setSpeed(speed);
+                PROG_SERIAL.print("Motor B: ");
+                PROG_SERIAL.println(speed);
             }
             else {
                 motorA.setSpeed(0);
