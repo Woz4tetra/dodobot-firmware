@@ -19,6 +19,7 @@ TicSerial tic(TIC_SERIAL);
 int fsr1_val = 0;
 int fsr2_val = 0;
 bool reporting_enabled = false;
+uint32_t report_timer = 0;
 
 // Servos
 #define MAX_POS 180
@@ -49,6 +50,7 @@ float busvoltage = 0;
 float current_mA = 0;
 float loadvoltage = 0;
 float power_mW = 0;
+float max_power_mW = 0;
 
 // TB6612
 #define MOTORA_DR1 4
@@ -162,6 +164,9 @@ void get_ina()
     current_mA = ina219.getCurrent_mA();
     power_mW = ina219.getPower_mW();
     loadvoltage = busvoltage + (shuntvoltage / 1000);
+    if (power_mW > max_power_mW) {
+        max_power_mW = power_mW;
+    }
 }
 
 void print_ina()
@@ -171,6 +176,7 @@ void print_ina()
     PROG_SERIAL.print("Load Voltage:  "); PROG_SERIAL.print(loadvoltage); PROG_SERIAL.println(" V");
     PROG_SERIAL.print("Current:       "); PROG_SERIAL.print(current_mA); PROG_SERIAL.println(" mA");
     PROG_SERIAL.print("Power:         "); PROG_SERIAL.print(power_mW); PROG_SERIAL.println(" mW");
+    PROG_SERIAL.print("Max Power:     "); PROG_SERIAL.print(max_power_mW); PROG_SERIAL.println(" mW");
     PROG_SERIAL.println("");
 }
 
@@ -195,7 +201,7 @@ void setup()
     gripper_servo.attach(GRIPPER_PIN);  // attaches the servo on pin 9 to the servo object
     tilter_servo.attach(TILTER_PIN);
 
-    set_servo(CLOSE_POS);
+    set_servo(OPEN_POS);
     tilter_servo.write(TILTER_UP);
 
     motorA.begin();
@@ -207,9 +213,9 @@ void loop()
     if (PROG_SERIAL.available()) {
         String command = PROG_SERIAL.readStringUntil('\n');
 
-        if (command.length() == 0) {
-            return;
-        }
+        // if (command.length() == 0) {
+        //     return;
+        // }
         char c = command.charAt(0);
         int cmd_pos = 0;
         if (c == 'c') {
@@ -272,6 +278,11 @@ void loop()
             delayWhileResettingCommandTimeout(500);
             tic.setTargetVelocity(0);
         }
+        else if (c == 'l') {
+            int tic_speed = command.substring(1).toInt();
+            tic.setTargetVelocity(tic_speed);
+            resetCommandTimeout();
+        }
         else if (c == 'm') {
             char motor_c = command.charAt(1);
             int speed = command.substring(2).toInt();
@@ -295,13 +306,12 @@ void loop()
     read_fsrs();
     get_ina();
 
-    if (reporting_enabled) {
+    if (reporting_enabled && millis() - report_timer > 100) {
         PROG_SERIAL.print(fsr1_val);
         PROG_SERIAL.print('\t');
         PROG_SERIAL.println(fsr2_val);
 
         print_ina();
-
-        delay(100);
+        report_timer = millis();
     }
 }
