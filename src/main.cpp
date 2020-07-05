@@ -3,6 +3,7 @@
 #include <Tic_Teensy.h>
 #include <Adafruit_INA219_Teensy.h>
 #include <TB6612.h>
+#include <Encoder.h>
 
 #define PROG_SERIAL Serial
 
@@ -11,10 +12,16 @@
 
 TicSerial tic(TIC_SERIAL);
 
+// Stepper positioning
+Encoder step_encoder(24, 12);
+#define INDEX_PIN 11
+#define HOMING_PIN 39
+long index_count = 0;
+
 // FSRs
 #define FSR1 A0
 #define FSR2 A1
-#define FSR_ACTIVATED 30
+#define FSR_ACTIVATED 50
 
 int fsr1_val = 0;
 int fsr2_val = 0;
@@ -26,7 +33,7 @@ uint32_t report_timer = 0;
 #define MIN_POS 0
 
 #define OPEN_POS 20
-#define CLOSE_POS 170
+#define CLOSE_POS 168
 
 #define TILTER_DOWN 10
 #define TILTER_UP 170
@@ -156,6 +163,19 @@ void delayWhileResettingCommandTimeout(uint32_t ms)
     } while ((uint32_t)(millis() - start) <= ms);
 }
 
+// Polls the Tic, waiting for it to reach the specified target
+// position.  Note that if the Tic detects an error, the Tic will
+// probably go into safe-start mode and never reach its target
+// position, so this function will loop infinitely.  If that
+// happens, you will need to reset your Arduino.
+void waitForPosition(int32_t targetPosition)
+{
+    tic.setTargetPosition(targetPosition);
+    do
+    {
+        resetCommandTimeout();
+    } while (tic.getCurrentPosition() != targetPosition);
+}
 
 void get_ina()
 {
@@ -180,6 +200,50 @@ void print_ina()
     PROG_SERIAL.println("");
 }
 
+void index_interrupt()
+{
+    index_count++;
+}
+
+
+void home_stepper()
+{
+    // Drive down at max speed until the limit switch is found
+    tic.setTargetVelocity(-420000000);
+    while (digitalRead(HOMING_PIN) == HIGH) {
+        resetCommandTimeout();
+    }
+    tic.haltAndHold();
+    delay(50);
+
+    // Move off the homing switch
+    while (digitalRead(HOMING_PIN) == LOW) {
+        waitForPosition(5000);
+    }
+
+    // Move down more slowly to get a more accurate reading
+    tic.setTargetVelocity(-50000000);
+    while (digitalRead(HOMING_PIN) == HIGH) {
+        resetCommandTimeout();
+    }
+    tic.haltAndHold();
+    delay(50);
+
+    // Move to the nearest encoder index and reset
+    tic.setTargetVelocity(10000000);
+    long prev_count = index_count;
+    while (prev_count == index_count) {
+        resetCommandTimeout();
+    }
+
+    tic.haltAndSetPosition(0);
+    delay(50);
+    step_encoder.write(0);
+    index_count = 0;
+    delay(50);
+    waitForPosition(10000);
+}
+
 void setup()
 {
     pinMode(LED_BUILTIN, OUTPUT);
@@ -202,10 +266,15 @@ void setup()
     tilter_servo.attach(TILTER_PIN);
 
     set_servo(OPEN_POS);
+    tilter_pos = TILTER_UP;
     tilter_servo.write(TILTER_UP);
 
     motorA.begin();
     motorB.begin();
+
+    attachInterrupt(digitalPinToInterrupt(INDEX_PIN), index_interrupt, RISING);
+    pinMode(HOMING_PIN, INPUT);
+    tic.setMaxSpeed(420000000);
 }
 
 void loop()
@@ -216,6 +285,7 @@ void loop()
         // if (command.length() == 0) {
         //     return;
         // }
+        // c o t i h g f a b u d l m
         char c = command.charAt(0);
         int cmd_pos = 0;
         if (c == 'c') {
@@ -238,10 +308,17 @@ void loop()
             set_servo(cmd_pos);
             PROG_SERIAL.println(cmd_pos);
         }
+        else if (c == 'i') {
+            wait_for_force(400);
+            PROG_SERIAL.println(gripper_pos);
+        }
         else if (c == 'h') {
             home_gripper();
             set_servo(cmd_pos);
             PROG_SERIAL.println(cmd_pos);
+        }
+        else if (c == 'g') {
+            home_stepper();
         }
         else if (c == 'f') {
             reporting_enabled = !reporting_enabled;
@@ -269,14 +346,18 @@ void loop()
             tilter_servo.write(tilter_pos);
         }
         else if (c == 'u') {
-            tic.setTargetVelocity(420000000);
-            delayWhileResettingCommandTimeout(500);
-            tic.setTargetVelocity(0);
+            waitForPosition(tic.getCurrentPosition() + 10000);
+            // tic.setTargetVelocity(420000000);
+            // delayWhileResettingCommandTimeout(500);
+            // tic.setTargetVelocity(0);
+            Serial.println(tic.getCurrentPosition());
         }
         else if (c == 'd') {
-            tic.setTargetVelocity(-420000000);
-            delayWhileResettingCommandTimeout(500);
-            tic.setTargetVelocity(0);
+            waitForPosition(tic.getCurrentPosition() - 10000);
+            // tic.setTargetVelocity(-420000000);
+            // delayWhileResettingCommandTimeout(500);
+            // tic.setTargetVelocity(0);
+            Serial.println(tic.getCurrentPosition());
         }
         else if (c == 'l') {
             int tic_speed = command.substring(1).toInt();
@@ -310,6 +391,10 @@ void loop()
         PROG_SERIAL.print(fsr1_val);
         PROG_SERIAL.print('\t');
         PROG_SERIAL.println(fsr2_val);
+
+        PROG_SERIAL.println(step_encoder.read());
+        PROG_SERIAL.println(index_count);
+        PROG_SERIAL.println(digitalRead(HOMING_PIN));
 
         print_ina();
         report_timer = millis();
