@@ -33,6 +33,7 @@ def main():
                 elif line[-1] == "0":  # if button released,
                     shutdown_starting = False
                     prev_display_countdown = None
+                    print("Canceled")
 
             if shutdown_starting:
                 current_time = time.time()
@@ -43,6 +44,8 @@ def main():
                     prev_display_countdown = countdown_time_int
                 if countdown_time <= 0.0:
                     print("Shutting down")
+                    device.write(b"shutdown\n")
+                    time.sleep(0.15)
                     raise ShutdownException
 
             time.sleep(0.01)

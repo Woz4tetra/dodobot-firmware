@@ -15,6 +15,7 @@ uint32_t usb_check_timer = 0;
 
 int led_val = 0;
 bool prev_button_state = false;
+bool is_shutting_down = false;
 
 
 void unlatch() {
@@ -76,6 +77,12 @@ void cycle_led()
 
 void loop()
 {
+    if (COMM_SERIAL.available()) {
+        String message = COMM_SERIAL.readStringUntil('\n');
+        if (message.equals("shutdown")) {
+            is_shutting_down = true;
+        }
+    }
     if (CURRENT_TIME - usb_check_timer > usb_check_interval_ms) {
         if (usb_connected_once) {
             if (!is_usb_connected()) {
@@ -91,7 +98,9 @@ void loop()
 
     bool button_state = is_button_pushed();
     if (button_state) {
-        cycle_led();
+        if (!is_shutting_down) {
+            cycle_led();            
+        }
     }
     else {
         set_button_led(255);

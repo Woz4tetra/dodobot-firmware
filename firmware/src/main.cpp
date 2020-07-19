@@ -1,402 +1,189 @@
 #include <Arduino.h>
-#include <Servo.h>
-#include <Tic_Teensy.h>
-#include <Adafruit_INA219_Teensy.h>
-#include <TB6612.h>
-#include <Encoder.h>
+#include "dodobot.h"
+#include "ir-remote-dodobot.h"
+#include "i2c-dodobot.h"
+#include "power-monitor-dodobot.h"
+#include "display-dodobot.h"
+#include "gripper-dodobot.h"
+#include "tilter-dodobot.h"
+#include "linear-dodobot.h"
 
-#define PROG_SERIAL Serial
 
-// TIC Stepper controller
-#define TIC_SERIAL Serial4
-
-TicSerial tic(TIC_SERIAL);
-
-// Stepper positioning
-Encoder step_encoder(24, 12);
-#define INDEX_PIN 11
-#define HOMING_PIN 39
-long index_count = 0;
-
-// FSRs
-#define FSR1 A0
-#define FSR2 A1
-#define FSR_ACTIVATED 50
-
-int fsr1_val = 0;
-int fsr2_val = 0;
-bool reporting_enabled = false;
-uint32_t report_timer = 0;
-
-// Servos
-#define MAX_POS 180
-#define MIN_POS 0
-
-#define OPEN_POS 20
-#define CLOSE_POS 168
-
-#define TILTER_DOWN 10
-#define TILTER_UP 170
-
-#define GRIPPER_PIN 9
-#define TILTER_PIN 10
-
-Servo gripper_servo;  // create servo object to control a servo
-Servo tilter_servo;
-
-int gripper_pos = 0;
-int tilter_pos = 0;
-
-bool LED_STATE = false;
-
-// INA219
-#define I2C_BUS_1 Wire
-Adafruit_INA219 ina219;
-float shuntvoltage = 0;
-float busvoltage = 0;
-float current_mA = 0;
-float loadvoltage = 0;
-float power_mW = 0;
-float max_power_mW = 0;
-
-// TB6612
-#define MOTORA_DR1 4
-#define MOTORA_DR2 3
-#define MOTORB_DR1 5
-#define MOTORB_DR2 6
-#define MOTORA_PWM 2
-#define MOTORB_PWM 7
-
-TB6612 motorA(MOTORA_PWM, MOTORA_DR1, MOTORA_DR2);
-TB6612 motorB(MOTORB_PWM, MOTORB_DR1, MOTORB_DR2);
-
-void set_led(bool state)
+void set_active(bool state)
 {
-    LED_STATE = state;
-    digitalWrite(LED_BUILTIN, LED_STATE);
+    dodobot::set_motors_active(state);
+    dodobot_gripper::set_active(state);
+    dodobot_tilter::set_active(state);
+    dodobot_linear::set_active(state);
 }
 
-
-void read_fsrs()
+void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)
 {
-    fsr1_val = analogRead(FSR1);
-    fsr2_val = analogRead(FSR2);
-}
+    // dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
 
-
-void set_servo(int new_pos, int force_threshold = FSR_ACTIVATED)
-{
-    if (new_pos > MAX_POS) {
-        new_pos = MAX_POS;
-    }
-    if (new_pos < MIN_POS) {
-        new_pos = MIN_POS;
-    }
-
-    gripper_pos = new_pos;
-    gripper_servo.write(gripper_pos);
-    // while (gripper_pos != new_pos) {
-    //     if (gripper_pos < new_pos) {
-    //         gripper_pos += 1;
-    //          read_fsrs();
-    //          if (fsr1_val > force_threshold || fsr2_val > force_threshold) {
-    //              break;
-    //          }
-    //          delay(5);
-    //     }
-    //     else if (gripper_pos > new_pos) {
-    //         gripper_pos -= 1;
-    //     }
-    //     gripper_servo.write(gripper_pos);
-    // }
-}
-
-void wait_for_force(int force_threshold)
-{
-    do
-    {
-        read_fsrs();
-        set_servo(gripper_pos + 1);
-        delay(20);
-        if (gripper_pos >= 180) {
-            break;
+    // get_ready
+    if (category.equals("?")) {
+        CHECK_SEGMENT(serial_obj);
+        if (serial_obj->get_segment().equals("dodobot")) {
+            dodobot_serial::println_info("Received ready signal!");
+            DODOBOT_SERIAL_WRITE_BOTH("ready", "us", CURRENT_TIME, "jetson-nano");
+        }
+        else {
+            dodobot_serial::println_error("Invalid ready segment supplied: %s", serial_obj->get_segment().c_str());
         }
     }
-    while (fsr1_val < force_threshold && fsr2_val < force_threshold);
-}
 
-void home_gripper()
-{
-    set_servo(90);
-    delay(150);
-    wait_for_force(FSR_ACTIVATED);
+    // toggle reporting
+    else if (category.equals("[]")) {
+        CHECK_SEGMENT(serial_obj);
+        int reporting_state = serial_obj->get_segment().toInt();
+        // dodobot_serial::println_info("toggle_reporting %d", reporting_state);
+        switch (reporting_state)
+        {
+            case 0: dodobot::robot_state.is_reporting_enabled = false; break;
+            case 1: dodobot::robot_state.is_reporting_enabled = true; break;
+            // case 2: reset(); break;
+            default:
+                dodobot_serial::println_error("Invalid reporting flag received: %d", reporting_state);
+                break;
+        }
+    }
 
-    set_servo(gripper_pos - 20);
-    delay(150);
-    wait_for_force(FSR_ACTIVATED);
+    // toggle motors active
+    else if (category.equals("<>")) {
+        CHECK_SEGMENT(serial_obj);
+        int active_state = serial_obj->get_segment().toInt();
+        // dodobot_serial::println_info("toggle_active %d", active_state);
+        switch (active_state)
+        {
+            case 0: set_active(false); break;
+            case 1: set_active(true); break;
+            // case 2: dodobot::soft_restart(); break;
+            default:
+                break;
+        }
+    }
 
-    PROG_SERIAL.print("homed gripper_pos: ");
-    PROG_SERIAL.println(gripper_pos);
-}
+    // set gripper
+    else if (category.equals("grip")) {
+        CHECK_SEGMENT(serial_obj);
+        int gripper_state = serial_obj->get_segment().toInt();
+        int grip_threshold = -1;
+        switch (gripper_state)
+        {
+            case 0: dodobot_gripper::open_gripper(); break;
+            case 1:
+                CHECK_SEGMENT(serial_obj);  grip_threshold = serial_obj->get_segment().toInt();
+                dodobot_gripper::close_gripper(grip_threshold);
+                break;
+            case 2:
+                CHECK_SEGMENT(serial_obj);  grip_threshold = serial_obj->get_segment().toInt();
+                dodobot_gripper::toggle_gripper(grip_threshold);
+                break;
+            default:
+                break;
+        }
+    }
 
+    // set tilter
+    else if (category.equals("tilt")) {
+        CHECK_SEGMENT(serial_obj);
+        int tilt_state = serial_obj->get_segment().toInt();
+        int tilt_pos = 0;
+        switch (tilt_state)
+        {
+            case 0: dodobot_tilter::tilter_up(); break;
+            case 1: dodobot_tilter::tilter_down(); break;
+            case 2: dodobot_tilter::tilter_toggle(); break;
+            case 3:
+                CHECK_SEGMENT(serial_obj);  tilt_pos = serial_obj->get_segment().toInt();
+                dodobot_tilter::set_tilter(tilt_pos);
+                break;
+            default:
+                break;
+        }
+    }
 
-
-// Sends a "Reset command timeout" command to the Tic.  We must
-// call this at least once per second, or else a command timeout
-// error will happen.  The Tic's default command timeout period
-// is 1000 ms, but it can be changed or disabled in the Tic
-// Control Center.
-void resetCommandTimeout()
-{
-    tic.resetCommandTimeout();
-}
-
-// Delays for the specified number of milliseconds while
-// resetting the Tic's command timeout so that its movement does
-// not get interrupted.
-void delayWhileResettingCommandTimeout(uint32_t ms)
-{
-    uint32_t start = millis();
-    do
-    {
-        resetCommandTimeout();
-    } while ((uint32_t)(millis() - start) <= ms);
-}
-
-// Polls the Tic, waiting for it to reach the specified target
-// position.  Note that if the Tic detects an error, the Tic will
-// probably go into safe-start mode and never reach its target
-// position, so this function will loop infinitely.  If that
-// happens, you will need to reset your Arduino.
-void waitForPosition(int32_t targetPosition)
-{
-    tic.setTargetPosition(targetPosition);
-    do
-    {
-        resetCommandTimeout();
-    } while (tic.getCurrentPosition() != targetPosition);
-}
-
-void get_ina()
-{
-    shuntvoltage = ina219.getShuntVoltage_mV();
-    busvoltage = ina219.getBusVoltage_V();
-    current_mA = ina219.getCurrent_mA();
-    power_mW = ina219.getPower_mW();
-    loadvoltage = busvoltage + (shuntvoltage / 1000);
-    if (power_mW > max_power_mW) {
-        max_power_mW = power_mW;
+    // set linear
+    else if (category.equals("linear")) {
+        CHECK_SEGMENT(serial_obj);
+        int linear_state = serial_obj->get_segment().toInt();
+        int linear_value = 0;
+        switch (linear_state)
+        {
+            case 0:
+                CHECK_SEGMENT(serial_obj);  linear_value = serial_obj->get_segment().toInt();
+                dodobot_linear::set_position(linear_value);
+                break;
+            case 1:
+                CHECK_SEGMENT(serial_obj);  linear_value = serial_obj->get_segment().toInt();
+                dodobot_linear::set_velocity(linear_value);
+                break;
+            case 2: dodobot_linear::stop(); break;
+            case 3: dodobot_linear::reset(); break;
+            case 4: dodobot_linear::home_stepper(); break;
+            default:
+                break;
+        }
     }
 }
 
-void print_ina()
+void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
 {
-    PROG_SERIAL.print("Bus Voltage:   "); PROG_SERIAL.print(busvoltage); PROG_SERIAL.println(" V");
-    PROG_SERIAL.print("Shunt Voltage: "); PROG_SERIAL.print(shuntvoltage); PROG_SERIAL.println(" mV");
-    PROG_SERIAL.print("Load Voltage:  "); PROG_SERIAL.print(loadvoltage); PROG_SERIAL.println(" V");
-    PROG_SERIAL.print("Current:       "); PROG_SERIAL.print(current_mA); PROG_SERIAL.println(" mA");
-    PROG_SERIAL.print("Power:         "); PROG_SERIAL.print(power_mW); PROG_SERIAL.println(" mW");
-    PROG_SERIAL.print("Max Power:     "); PROG_SERIAL.print(max_power_mW); PROG_SERIAL.println(" mW");
-    PROG_SERIAL.println("");
-}
-
-void index_interrupt()
-{
-    index_count++;
-}
-
-
-void home_stepper()
-{
-    // Drive down at max speed until the limit switch is found
-    tic.setTargetVelocity(-420000000);
-    while (digitalRead(HOMING_PIN) == HIGH) {
-        resetCommandTimeout();
+    switch (value) {
+        case 0x00ff: dodobot_serial::println_info("IR: VOL-"); break;  // VOL-
+        case 0x807f: dodobot_serial::println_info("IR: Play/Pause"); break;  // Play/Pause
+        case 0x40bf: dodobot_serial::println_info("IR: VOL+"); break;  // VOL+
+        case 0x20df: dodobot_serial::println_info("IR: SETUP"); break;  // SETUP
+        case 0xa05f: dodobot_serial::println_info("IR: ^"); break;  // ^
+        case 0x609f: dodobot_serial::println_info("IR: MODE"); break;  // MODE
+        case 0x10ef: dodobot_serial::println_info("IR: <"); break;  // <
+        case 0x906f: dodobot_serial::println_info("IR: ENTER"); break;  // ENTER
+        case 0x50af: dodobot_serial::println_info("IR: >"); break;  // >
+        case 0x30cf: dodobot_serial::println_info("IR: 0 10+"); break;  // 0 10+
+        case 0xb04f: dodobot_serial::println_info("IR: v"); break;  // v
+        case 0x708f: dodobot_serial::println_info("IR: Del"); break;  // Del
+        case 0x08f7: dodobot_serial::println_info("IR: 1"); break;  // 1
+        case 0x8877: dodobot_serial::println_info("IR: 2"); break;  // 2
+        case 0x48B7: dodobot_serial::println_info("IR: 3"); break;  // 3
+        case 0x28D7: dodobot_serial::println_info("IR: 4"); break;  // 4
+        case 0xA857: dodobot_serial::println_info("IR: 5"); break;  // 5
+        case 0x6897: dodobot_serial::println_info("IR: 6"); break;  // 6
+        case 0x18E7: dodobot_serial::println_info("IR: 7"); break;  // 7
+        case 0x9867: dodobot_serial::println_info("IR: 8"); break;  // 8
+        case 0x58A7: dodobot_serial::println_info("IR: 9"); break;  // 9
     }
-    tic.haltAndHold();
-    delay(50);
-
-    // Move off the homing switch
-    while (digitalRead(HOMING_PIN) == LOW) {
-        waitForPosition(5000);
-    }
-
-    // Move down more slowly to get a more accurate reading
-    tic.setTargetVelocity(-50000000);
-    while (digitalRead(HOMING_PIN) == HIGH) {
-        resetCommandTimeout();
-    }
-    tic.haltAndHold();
-    delay(50);
-
-    // Move to the nearest encoder index and reset
-    tic.setTargetVelocity(10000000);
-    long prev_count = index_count;
-    while (prev_count == index_count) {
-        resetCommandTimeout();
-    }
-
-    tic.haltAndSetPosition(0);
-    delay(50);
-    step_encoder.write(0);
-    index_count = 0;
-    delay(50);
-    waitForPosition(10000);
 }
 
 void setup()
 {
-    pinMode(LED_BUILTIN, OUTPUT);
-    set_led(HIGH);
-
-    PROG_SERIAL.begin(9600);
-    PROG_SERIAL.println("Setup");
-
-    I2C_BUS_1.begin(I2C_MASTER, 0x00, I2C_PINS_16_17, I2C_PULLUP_EXT, 400000);
-    I2C_BUS_1.setDefaultTimeout(200000); // 200ms
-    ina219.begin(&I2C_BUS_1);
-    PROG_SERIAL.println("INA219 ready");
-
-    TIC_SERIAL.begin(9600);
-    // Give the Tic some time to start up.
-    delay(20);
-    tic.exitSafeStart();
-
-    gripper_servo.attach(GRIPPER_PIN);  // attaches the servo on pin 9 to the servo object
-    tilter_servo.attach(TILTER_PIN);
-
-    set_servo(OPEN_POS);
-    tilter_pos = TILTER_UP;
-    tilter_servo.write(TILTER_UP);
-
-    motorA.begin();
-    motorB.begin();
-
-    attachInterrupt(digitalPinToInterrupt(INDEX_PIN), index_interrupt, RISING);
-    pinMode(HOMING_PIN, INPUT);
-    tic.setMaxSpeed(420000000);
+    dodobot::setup();
+    dodobot_serial::setup_serial();
+    dodobot_ir_remote::setup_IR();
+    dodobot_i2c::setup_i2c();
+    dodobot_power_monitor::setup_INA219();
+    dodobot_display::setup_display();
+    dodobot_gripper::setup_gripper();
+    dodobot_tilter::setup_tilter();
+    dodobot_linear::setup_linear();
 }
 
 void loop()
 {
-    if (PROG_SERIAL.available()) {
-        String command = PROG_SERIAL.readStringUntil('\n');
+    dodobot_serial::data->read();
+    dodobot_serial::info->read();
 
-        // if (command.length() == 0) {
-        //     return;
-        // }
-        // c o t i h g f a b u d l m
-        char c = command.charAt(0);
-        int cmd_pos = 0;
-        if (c == 'c') {
-            cmd_pos = CLOSE_POS;
-            set_servo(cmd_pos);
-            PROG_SERIAL.println(cmd_pos);
-        }
-        else if (c == 'o') {
-            cmd_pos = OPEN_POS;
-            set_servo(cmd_pos);
-            PROG_SERIAL.println(cmd_pos);
-        }
-        else if (c == 't') {
-            if (gripper_pos == OPEN_POS) {
-                cmd_pos = CLOSE_POS;
-            }
-            else {
-                cmd_pos = OPEN_POS;
-            }
-            set_servo(cmd_pos);
-            PROG_SERIAL.println(cmd_pos);
-        }
-        else if (c == 'i') {
-            wait_for_force(400);
-            PROG_SERIAL.println(gripper_pos);
-        }
-        else if (c == 'h') {
-            home_gripper();
-            set_servo(cmd_pos);
-            PROG_SERIAL.println(cmd_pos);
-        }
-        else if (c == 'g') {
-            home_stepper();
-        }
-        else if (c == 'f') {
-            reporting_enabled = !reporting_enabled;
-        }
-        else if (c == 'a') {
-            cmd_pos = command.substring(1).toInt();
-            set_servo(cmd_pos);
-            PROG_SERIAL.println(cmd_pos);
-        }
-        else if (c == 'b') {
-            // int tilter_pos = command.substring(1).toInt();
-            // if (tilter_pos > MAX_POS) {
-            //     tilter_pos = MAX_POS;
-            // }
-            // if (tilter_pos < MIN_POS) {
-            //     tilter_pos = MIN_POS;
-            // }
-            // tilter_servo.write(tilter_pos);
-            if (tilter_pos == TILTER_UP) {
-                tilter_pos = TILTER_DOWN;
-            }
-            else {
-                tilter_pos = TILTER_UP;
-            }
-            tilter_servo.write(tilter_pos);
-        }
-        else if (c == 'u') {
-            waitForPosition(tic.getCurrentPosition() + 10000);
-            // tic.setTargetVelocity(420000000);
-            // delayWhileResettingCommandTimeout(500);
-            // tic.setTargetVelocity(0);
-            Serial.println(tic.getCurrentPosition());
-        }
-        else if (c == 'd') {
-            waitForPosition(tic.getCurrentPosition() - 10000);
-            // tic.setTargetVelocity(-420000000);
-            // delayWhileResettingCommandTimeout(500);
-            // tic.setTargetVelocity(0);
-            Serial.println(tic.getCurrentPosition());
-        }
-        else if (c == 'l') {
-            int tic_speed = command.substring(1).toInt();
-            tic.setTargetVelocity(tic_speed);
-            resetCommandTimeout();
-        }
-        else if (c == 'm') {
-            char motor_c = command.charAt(1);
-            int speed = command.substring(2).toInt();
-            if (motor_c == 'a') {
-                motorA.setSpeed(speed);
-                PROG_SERIAL.print("Motor A: ");
-                PROG_SERIAL.println(speed);
-            }
-            else if (motor_c == 'b') {
-                motorB.setSpeed(speed);
-                PROG_SERIAL.print("Motor B: ");
-                PROG_SERIAL.println(speed);
-            }
-            else {
-                motorA.setSpeed(0);
-                motorB.setSpeed(0);
-            }
-        }
+    dodobot::report_structs();
+
+    if (dodobot_ir_remote::read_IR()) {
+        dodobot_ir_remote::report_IR();
     }
-
-    read_fsrs();
-    get_ina();
-
-    if (reporting_enabled && millis() - report_timer > 100) {
-        PROG_SERIAL.print(fsr1_val);
-        PROG_SERIAL.print('\t');
-        PROG_SERIAL.println(fsr2_val);
-
-        PROG_SERIAL.println(step_encoder.read());
-        PROG_SERIAL.println(index_count);
-        PROG_SERIAL.println(digitalRead(HOMING_PIN));
-
-        print_ina();
-        report_timer = millis();
+    if (dodobot_power_monitor::read_INA219()) {
+        dodobot_power_monitor::report_INA219();
     }
+    if (dodobot_gripper::read_fsrs()) {
+        dodobot_gripper::report_fsrs();
+    }
+    dodobot_gripper::update();
+    dodobot_linear::update();
 }

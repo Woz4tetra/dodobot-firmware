@@ -15,6 +15,8 @@ TicSerial tic(TIC_SERIAL);
 // Homing switch
 #define HOMING_PIN 39
 
+#define MOTOR_STBY 26
+
 
 // Encoder
 // #define STEPPER_ENCA 24
@@ -26,6 +28,22 @@ const int max_position = 85000;
 // const uint32_t max_speed = 420000000;
 const int max_speed = 200000000;
 
+bool are_motors_active = false;
+
+
+void set_motors_active(bool active)
+{
+    if (are_motors_active == active) {
+        return;
+    }
+    are_motors_active = active;
+    if (active) {  // bring motors out of standby mode
+        digitalWrite(MOTOR_STBY, HIGH);
+    }
+    else {  // set motors to low power
+        digitalWrite(MOTOR_STBY, LOW);
+    }
+}
 
 bool is_home_pin_active() {
     return digitalRead(HOMING_PIN) == LOW;
@@ -42,6 +60,8 @@ void setup_stepper()
     // stepper_enc.write(0);
 
     pinMode(HOMING_PIN, INPUT);
+    // pinMode(MOTOR_STBY, OUTPUT);
+    // set_motors_active(true);
 }
 
 void waitForPosition(int32_t targetPosition)
@@ -51,6 +71,15 @@ void waitForPosition(int32_t targetPosition)
     {
         tic.resetCommandTimeout();
     } while (tic.getCurrentPosition() != targetPosition);
+}
+
+void delayWhileResettingCommandTimeout(uint32_t ms)
+{
+    uint32_t start = millis();
+    do
+    {
+        tic.resetCommandTimeout();
+    } while ((uint32_t)(millis() - start) <= ms);
 }
 
 void home_stepper()
@@ -116,6 +145,19 @@ void loop()
             else {
                 COMM_SERIAL.println("Stepper isn't homed!");
             }
+        }
+        else if (c == 'd') {
+            tic.setTargetVelocity(-max_speed);
+            delayWhileResettingCommandTimeout(500);
+            tic.haltAndHold();
+        }
+        else if (c == 'u') {
+            tic.setTargetVelocity(max_speed);
+            delayWhileResettingCommandTimeout(500);
+            tic.haltAndHold();
+        }
+        else {
+            tic.haltAndHold();
         }
     }
     if (CURRENT_TIME - prev_report_time > report_interval_ms) {
