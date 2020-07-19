@@ -69,7 +69,7 @@ namespace dodobot
         }
         state_report_timer = CURRENT_TIME;
 
-        DODOBOT_SERIAL_WRITE_BOTH("state", "uddd", CURRENT_TIME,
+        dodobot_serial::data->write("state", "uddd", CURRENT_TIME,
             robot_state.is_active,
             robot_state.battery_ok,
             robot_state.motors_active

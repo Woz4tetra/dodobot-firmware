@@ -71,8 +71,8 @@ namespace dodobot_tilter
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
-        // dodobot_serial::data->write("tilt", "ud", CURRENT_TIME, tilter_pos);
-        dodobot_serial::info->write("tilt", "ud", CURRENT_TIME, tilter_pos);
+        dodobot_serial::data->write("tilt", "ud", CURRENT_TIME, tilter_pos);
+        // dodobot_serial::info->write("tilt", "ud", CURRENT_TIME, tilter_pos);
     }
 };
 

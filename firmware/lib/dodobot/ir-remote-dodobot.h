@@ -58,7 +58,7 @@ namespace dodobot_ir_remote
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
-        DODOBOT_SERIAL_WRITE_BOTH("ir", "udd", CURRENT_TIME, ir_type, ir_value);
+        dodobot_serial::data->write("ir", "udd", CURRENT_TIME, ir_type, ir_value);
     }
 };  // namespace dodobot_ir_remote
 

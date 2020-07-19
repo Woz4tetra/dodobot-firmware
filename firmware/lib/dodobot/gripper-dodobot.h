@@ -141,8 +141,8 @@ namespace dodobot_gripper
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
-        // dodobot_serial::data->write("fsr", "udd", CURRENT_TIME, get_left_fsr(), get_right_fsr());
-        dodobot_serial::info->write("fsr", "udd", CURRENT_TIME, get_left_fsr(), get_right_fsr());
+        dodobot_serial::data->write("fsr", "udd", CURRENT_TIME, get_left_fsr(), get_right_fsr());
+        // dodobot_serial::info->write("fsr", "udd", CURRENT_TIME, get_left_fsr(), get_right_fsr());
     }
 
     void report_gripper_pos()
@@ -150,8 +150,8 @@ namespace dodobot_gripper
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
-        // dodobot_serial::data->write("fsr", "udd", CURRENT_TIME, get_left_fsr(), get_right_fsr());
-        dodobot_serial::info->write("grip", "ud", CURRENT_TIME, gripper_pos);
+        dodobot_serial::data->write("grip", "ud", CURRENT_TIME, gripper_pos);
+        // dodobot_serial::info->write("grip", "ud", CURRENT_TIME, gripper_pos);
     }
 };
 

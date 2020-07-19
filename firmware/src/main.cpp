@@ -9,6 +9,7 @@
 #include "linear-dodobot.h"
 #include "chassis-dodobot.h"
 #include "speed-pid-dodobot.h"
+#include "latch-circuit-dodobot.h"
 
 
 void set_active(bool state)
@@ -23,7 +24,7 @@ void set_active(bool state)
 
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)
 {
-    dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
+    // dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
 
     // get_ready
     if (category.equals("?")) {
@@ -133,7 +134,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // set pid ks
     else if (category.equals("ks")) {
-        CHECK_SEGMENT(serial_obj); int index = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj); unsigned int index = serial_obj->get_segment().toInt();
         CHECK_SEGMENT(serial_obj); float k_value = serial_obj->get_segment().toFloat();
         if (0 <= index && index < dodobot_speed_pid::NUM_PID_KS) {
             dodobot_speed_pid::pid_Ks[index] = k_value;
@@ -150,6 +151,11 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         CHECK_SEGMENT(serial_obj); float setpointB = serial_obj->get_segment().toFloat();
         dodobot_speed_pid::update_setpointA(setpointA);
         dodobot_speed_pid::update_setpointB(setpointB);
+    }
+
+    // shutdown signal
+    else if (category.equals("shutdown")) {
+        dodobot_latch_circuit::shutdown();
     }
 }
 
@@ -239,6 +245,7 @@ void setup()
     dodobot_linear::setup_linear();
     dodobot_chassis::setup_chassis();
     dodobot_speed_pid::setup_pid();
+    dodobot_latch_circuit::setup_latch();
 }
 
 void loop()
@@ -261,4 +268,5 @@ void loop()
     dodobot_linear::update();
     dodobot_chassis::update();
     dodobot_speed_pid::update_speed_pid();
+    dodobot_latch_circuit::update();
 }
