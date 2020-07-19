@@ -25,6 +25,7 @@ namespace dodobot
         bool is_reporting_enabled;
         bool battery_ok;
         bool motors_active;
+        bool is_speed_pid_enabled;
     } robot_state;
 
     void init_structs() {
@@ -32,6 +33,7 @@ namespace dodobot
         robot_state.is_reporting_enabled = false;
         robot_state.battery_ok = true;
         robot_state.motors_active = false;
+        robot_state.is_speed_pid_enabled = false;
     }
 
     void set_motors_active(bool state)
@@ -46,12 +48,15 @@ namespace dodobot
         else {  // set motors to low power
             digitalWrite(MOTOR_STANDBY_PIN, LOW);
         }
+        delay(100);  // wait for modules to power off/on
     }
 
     void setup() {
         init_structs();
         pinMode(MOTOR_STANDBY_PIN, OUTPUT);
         set_motors_active(false);
+        // set_motors_active(true);
+        // robot_state.is_reporting_enabled = true;
     }
 
     void report_structs()

@@ -7,6 +7,8 @@
 #include "gripper-dodobot.h"
 #include "tilter-dodobot.h"
 #include "linear-dodobot.h"
+#include "chassis-dodobot.h"
+#include "speed-pid-dodobot.h"
 
 
 void set_active(bool state)
@@ -15,11 +17,13 @@ void set_active(bool state)
     dodobot_gripper::set_active(state);
     dodobot_tilter::set_active(state);
     dodobot_linear::set_active(state);
+    dodobot_chassis::set_active(state);
+    dodobot_speed_pid::set_speed_pid(state);
 }
 
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)
 {
-    // dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
+    dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
 
     // get_ready
     if (category.equals("?")) {
@@ -126,32 +130,99 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
                 break;
         }
     }
+
+    // set pid ks
+    else if (category.equals("ks")) {
+        CHECK_SEGMENT(serial_obj); int index = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj); float k_value = serial_obj->get_segment().toFloat();
+        if (0 <= index && index < dodobot_speed_pid::NUM_PID_KS) {
+            dodobot_speed_pid::pid_Ks[index] = k_value;
+            dodobot_speed_pid::set_Ks();  // sets pid constants based on pid_Ks array
+        }
+        else {
+            dodobot_serial::println_error("Invalid K value index supplied: %d", index);
+        }
+    }
+
+    // set chassis speed
+    else if (category.equals("drive")) {
+        CHECK_SEGMENT(serial_obj); float setpointA = serial_obj->get_segment().toFloat();
+        CHECK_SEGMENT(serial_obj); float setpointB = serial_obj->get_segment().toFloat();
+        dodobot_speed_pid::update_setpointA(setpointA);
+        dodobot_speed_pid::update_setpointB(setpointB);
+    }
 }
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
 {
     switch (value) {
         case 0x00ff: dodobot_serial::println_info("IR: VOL-"); break;  // VOL-
-        case 0x807f: dodobot_serial::println_info("IR: Play/Pause"); break;  // Play/Pause
+        case 0x807f:
+            dodobot_serial::println_info("IR: Play/Pause");
+            set_active(!dodobot::robot_state.motors_active);
+            dodobot_serial::println_info("motors_active: %d", dodobot::robot_state.motors_active);
+            break;  // Play/Pause
         case 0x40bf: dodobot_serial::println_info("IR: VOL+"); break;  // VOL+
         case 0x20df: dodobot_serial::println_info("IR: SETUP"); break;  // SETUP
-        case 0xa05f: dodobot_serial::println_info("IR: ^"); break;  // ^
+        case 0xa05f:
+            dodobot_serial::println_info("IR: ^");
+            dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() + 10000);
+            // dodobot_linear::set_velocity(dodobot_linear::MAX_SPEED);
+            break;  // ^
         case 0x609f: dodobot_serial::println_info("IR: MODE"); break;  // MODE
         case 0x10ef: dodobot_serial::println_info("IR: <"); break;  // <
         case 0x906f: dodobot_serial::println_info("IR: ENTER"); break;  // ENTER
         case 0x50af: dodobot_serial::println_info("IR: >"); break;  // >
-        case 0x30cf: dodobot_serial::println_info("IR: 0 10+"); break;  // 0 10+
-        case 0xb04f: dodobot_serial::println_info("IR: v"); break;  // v
+        case 0x30cf:
+            dodobot_serial::println_info("IR: 0 10+");
+            dodobot::robot_state.is_reporting_enabled = !dodobot::robot_state.is_reporting_enabled;
+            dodobot_serial::println_info("is_reporting_enabled: %d", dodobot::robot_state.is_reporting_enabled);
+            break;  // 0 10+
+        case 0xb04f:
+            dodobot_serial::println_info("IR: v");
+            dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() - 10000);
+            // dodobot_linear::set_velocity(-dodobot_linear::MAX_SPEED);
+            break;  // v
         case 0x708f: dodobot_serial::println_info("IR: Del"); break;  // Del
-        case 0x08f7: dodobot_serial::println_info("IR: 1"); break;  // 1
-        case 0x8877: dodobot_serial::println_info("IR: 2"); break;  // 2
+        case 0x08f7:
+            dodobot_serial::println_info("IR: 1");
+            dodobot_gripper::toggle_gripper();
+            break;  // 1
+        case 0x8877:
+            dodobot_serial::println_info("IR: 2");
+            dodobot_speed_pid::update_setpointA(3000);
+            dodobot_speed_pid::update_setpointB(3000);
+            // dodobot_chassis::set_motorA(255);
+            // dodobot_chassis::set_motorB(255);
+            break;  // 2
         case 0x48B7: dodobot_serial::println_info("IR: 3"); break;  // 3
-        case 0x28D7: dodobot_serial::println_info("IR: 4"); break;  // 4
-        case 0xA857: dodobot_serial::println_info("IR: 5"); break;  // 5
-        case 0x6897: dodobot_serial::println_info("IR: 6"); break;  // 6
+        case 0x28D7:
+            dodobot_serial::println_info("IR: 4");
+            dodobot_speed_pid::update_setpointA(-3000);
+            dodobot_speed_pid::update_setpointB(3000);
+            break;  // 4
+        case 0xA857:
+            dodobot_serial::println_info("IR: 5");
+            dodobot_speed_pid::update_setpointA(0);
+            dodobot_speed_pid::update_setpointB(0);
+            break;  // 5
+        case 0x6897:
+            dodobot_serial::println_info("IR: 6");
+            dodobot_speed_pid::update_setpointA(3000);
+            dodobot_speed_pid::update_setpointB(-3000);
+            break;  // 6
         case 0x18E7: dodobot_serial::println_info("IR: 7"); break;  // 7
-        case 0x9867: dodobot_serial::println_info("IR: 8"); break;  // 8
-        case 0x58A7: dodobot_serial::println_info("IR: 9"); break;  // 9
+        case 0x9867:
+            dodobot_serial::println_info("IR: 8");
+            dodobot_speed_pid::update_setpointA(-3000);
+            dodobot_speed_pid::update_setpointB(-3000);
+            // dodobot_chassis::set_motorA(-255);
+            // dodobot_chassis::set_motorB(-255);
+            break;  // 8
+        case 0x58A7:
+            dodobot_serial::println_info("IR: 9");
+            dodobot_linear::home_stepper();
+            break;  // 9
     }
 }
 
@@ -166,6 +237,8 @@ void setup()
     dodobot_gripper::setup_gripper();
     dodobot_tilter::setup_tilter();
     dodobot_linear::setup_linear();
+    dodobot_chassis::setup_chassis();
+    dodobot_speed_pid::setup_pid();
 }
 
 void loop()
@@ -186,4 +259,6 @@ void loop()
     }
     dodobot_gripper::update();
     dodobot_linear::update();
+    dodobot_chassis::update();
+    dodobot_speed_pid::update_speed_pid();
 }

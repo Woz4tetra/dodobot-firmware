@@ -29,12 +29,18 @@ namespace dodobot_linear
     bool is_homed = false;
     bool is_active = false;
     const int MAX_POSITION = 85000;
+    const int POSITION_BUFFER = 500;
     // const uint32_t MAX_SPEED = 420000000;
     const int MAX_SPEED = 200000000;
+    int target_position = 0;
+    int target_velocity = 0;
 
     uint32_t update_timer = 0;
-    const uint32_t UPDATE_DELAY_MS = 33;
+    const uint32_t UPDATE_DELAY_MS = 50;
 
+    enum TicPlanningMode planning_mode = TicPlanningMode::Off;  // 0 = off, 1 = position, 2 = velocity
+    uint32_t planning_mode_timer = 0;
+    const uint32_t PLANNING_MODE_DELAY_MS = 100;
 
     bool is_home_pin_active() {
         return digitalRead(HOMING_PIN) == LOW;
@@ -52,24 +58,27 @@ namespace dodobot_linear
     }
 
     void set_active(bool state) {
+        if (is_active == state) {
+            return;
+        }
+        is_active = state;
         if (state && dodobot::robot_state.motors_active) {
+            TIC_SERIAL.begin(9600);
+            // Give the Tic some time to start up.
+            delay(20);
             tic.exitSafeStart();
             tic.setMaxSpeed(MAX_SPEED);
             // stepper_enc.write(0);
-            is_active = true;
             is_homed = true;
         }
         else {
-            is_active = false;
+            TIC_SERIAL.end();
             is_homed = false;
         }
     }
 
     void setup_linear()
     {
-        TIC_SERIAL.begin(9600);
-        // Give the Tic some time to start up.
-        delay(20);
         pinMode(HOMING_PIN, INPUT);
         pinMode(ERROR_PIN, INPUT);
         pinMode(RESET_PIN, OUTPUT);
@@ -89,15 +98,58 @@ namespace dodobot_linear
         } while (tic.getCurrentPosition() != targetPosition);
     }
 
+    void print_stepper_error(uint16_t errors)
+    {
+        if (errors & (1 << (uint8_t)TicError::IntentionallyDeenergized))
+            dodobot_serial::println_error("Tic Error: IntentionallyDeenergized, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::MotorDriverError))
+            dodobot_serial::println_error("Tic Error: MotorDriverError, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::LowVin))
+            dodobot_serial::println_error("Tic Error: LowVin, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::KillSwitch))
+            dodobot_serial::println_error("Tic Error: KillSwitch, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::RequiredInputInvalid))
+            dodobot_serial::println_error("Tic Error: RequiredInputInvalid, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::SerialError))
+            dodobot_serial::println_error("Tic Error: SerialError, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::CommandTimeout))
+            dodobot_serial::println_error("Tic Error: CommandTimeout, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::SafeStartViolation))
+            dodobot_serial::println_error("Tic Error: SafeStartViolation, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::ErrLineHigh))
+            dodobot_serial::println_error("Tic Error: ErrLineHigh, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::SerialFraming))
+            dodobot_serial::println_error("Tic Error: SerialFraming, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::RxOverrun))
+            dodobot_serial::println_error("Tic Error: RxOverrun, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::Format))
+            dodobot_serial::println_error("Tic Error: Format, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::Crc))
+            dodobot_serial::println_error("Tic Error: Crc, %d", errors);
+        if (errors & (1 << (uint8_t)TicError::EncoderSkip))
+            dodobot_serial::println_error("Tic Error: EncoderSkip, %d", errors);
+    }
+
     void home_stepper()
     {
-        // dodobot_serial::println_info("is_active: %d, is_errored: %d", is_active, is_errored());
         if (!is_active) {
+            dodobot_serial::println_error("Can't home stepper. Active flag not set.");
             return;
         }
         if (is_errored()) {
-            return;
+            uint16_t errors = tic.getErrorStatus();
+
+            if (errors & (1 << (uint8_t)TicError::SafeStartViolation)) {
+                tic.exitSafeStart();
+                tic.setMaxSpeed(MAX_SPEED);
+            }
+            else {
+                dodobot_serial::println_error("Can't home stepper. Stepper is errored.");
+                print_stepper_error(errors);
+                return;
+            }
         }
+        dodobot_serial::println_info("Running home sequence.");
         // Drive down until the limit switch is found
         tic.setTargetVelocity(-200000000);
         while (!is_home_pin_active()) {
@@ -126,6 +178,7 @@ namespace dodobot_linear
 
         tic.setMaxSpeed(MAX_SPEED);
         is_homed = true;
+        dodobot_serial::println_info("Homing complete.");
     }
 
     void set_position(int position) {
@@ -138,44 +191,69 @@ namespace dodobot_linear
         if (position < 0) {
             position = 0;
         }
-        tic.setTargetPosition(position);
+        target_position = position;
+        tic.setTargetPosition(target_position);
     }
 
     void set_velocity(int velocity) {
         if (!is_homed || !is_active) {
             return;
         }
+        target_velocity = velocity;
         tic.setTargetVelocity(velocity);
     }
 
     void stop() {
+        target_velocity = 0;
         tic.haltAndHold();
     }
 
-    void report_linear()
-    {
-        if (!dodobot::robot_state.is_reporting_enabled) {
-            return;
+    bool is_position_invalid(int position) {
+        return (
+            (target_position >= MAX_POSITION && position >= MAX_POSITION) ||
+            (target_position < 0 && position < 0)
+        );
+    }
+
+    bool is_velocity_invalid(int position) {
+        return (
+            (target_velocity > 0 && position >= (MAX_POSITION - POSITION_BUFFER)) ||
+            (target_velocity < 0 && position < POSITION_BUFFER)
+        );
+    }
+
+    enum TicPlanningMode get_planning_mode() {
+        if (CURRENT_TIME - planning_mode_timer > PLANNING_MODE_DELAY_MS) {
+            planning_mode_timer = CURRENT_TIME;
+            planning_mode = tic.getPlanningMode();
+
         }
-        // dodobot_serial::info->data("linear", "udddd", CURRENT_TIME, tic.getCurrentPosition(), is_errored(), is_homed, is_active);
-        dodobot_serial::info->write("linear", "udddd", CURRENT_TIME, tic.getCurrentPosition(), is_errored(), is_homed, is_active);
+        return planning_mode;
     }
 
     void update() {
-        if (CURRENT_TIME - update_timer < UPDATE_DELAY_MS) {
+        if (!is_homed || !is_active) {
             return;
         }
 
-        if (tic.getCurrentPosition() >= MAX_POSITION) {
-            stop();
+        int current_pos = tic.getCurrentPosition();
+        switch (get_planning_mode()) {
+            case TicPlanningMode::Off: break;
+            case TicPlanningMode::TargetPosition: if (is_position_invalid(current_pos))  { stop(); } break;
+            case TicPlanningMode::TargetVelocity: if (is_velocity_invalid(current_pos))  { stop(); } break;
         }
-        if (tic.getCurrentPosition() <= 0) {
-            stop();
+
+        if (CURRENT_TIME - update_timer < UPDATE_DELAY_MS) {
+            return;
         }
+        update_timer = CURRENT_TIME;
 
         tic.resetCommandTimeout();
 
-        report_linear();
+        if (!dodobot::robot_state.is_reporting_enabled) {
+            return;
+        }
+        dodobot_serial::data->write("linear", "udddd", CURRENT_TIME, current_pos, is_errored(), is_homed, is_active);
     }
 }
 

@@ -56,6 +56,7 @@ namespace dodobot_gripper
     {
         gripper_pos = OPEN_POS;
         gripper_servo.write(gripper_pos);
+        grip_reached = true;
         report_gripper_pos();
     }
 

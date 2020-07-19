@@ -16,6 +16,9 @@ namespace dodobot_ir_remote
     uint16_t ir_value = 0;
     uint16_t prev_ir_value = 0;
 
+    uint32_t ir_check_timer = 0;
+    const uint32_t IR_CHECK_DELAY_MS = 33;
+
     void setup_IR()
     {
         irrecv.enableIRIn();
@@ -26,6 +29,11 @@ namespace dodobot_ir_remote
 
     bool read_IR()
     {
+        if (CURRENT_TIME - ir_check_timer < IR_CHECK_DELAY_MS) {
+            return false;
+        }
+        ir_check_timer = CURRENT_TIME;
+
         if (irrecv.decode(&irresults)) {
             ir_type = irresults.decode_type;
             prev_ir_value = ir_value;
@@ -33,9 +41,9 @@ namespace dodobot_ir_remote
             irrecv.resume(); // Receive the next value
             // dodobot_serial::println_info("IR: %d", ir_value);
 
-            if (ir_value == 0xffff) {  // 0xffff means repeat last command
-                ir_value = prev_ir_value;
-            }
+            // if (ir_value == 0xffff) {  // 0xffff means repeat last command
+            //     ir_value = prev_ir_value;
+            // }
 
             callback_ir(ir_type, ir_value);
 

@@ -5,7 +5,7 @@
 
 #define DATA_SERIAL  Serial5
 #define INFO_SERIAL  Serial
-#define SERIAL_MSG_BUFFER_SIZE 0xff
+#define SERIAL_MSG_BUFFER_SIZE 0x7f
 char SERIAL_MSG_BUFFER[SERIAL_MSG_BUFFER_SIZE];
 #define PACKET_START_0 '\x12'
 #define PACKET_START_1 '\x34'
@@ -120,8 +120,8 @@ namespace dodobot_serial
                 return;
             }
             switch (type) {
-                case PRINT_INFO:  device()->print("msg\tINFO\t"); break;
-                case PRINT_ERROR:  device()->print("msg\tERROR\t"); break;
+                case PRINT_INFO:  device()->print("INFO\t"); break;
+                case PRINT_ERROR:  device()->print("ERROR\t"); break;
                 default: return;
             }
             device()->print(message);
@@ -355,6 +355,12 @@ namespace dodobot_serial
         packet_callback(data, category, packet);
     }
 
+    // void println_info(const char* message)
+    // {
+    //     data->print_buffer(PRINT_INFO, true, message);
+    //     info->print_buffer(PRINT_INFO, true, message);
+    // }
+
     void println_info(const char* message, ...)
     {
         va_list args;
@@ -364,6 +370,12 @@ namespace dodobot_serial
         data->print_buffer(PRINT_INFO, true, SERIAL_MSG_BUFFER);
         info->print_buffer(PRINT_INFO, true, SERIAL_MSG_BUFFER);
     }
+
+    // void println_error(const char* message)
+    // {
+    //     data->print_buffer(PRINT_ERROR, true, message);
+    //     info->print_buffer(PRINT_ERROR, true, message);
+    // }
 
     void println_error(const char* message, ...)
     {
@@ -375,6 +387,12 @@ namespace dodobot_serial
         info->print_buffer(PRINT_ERROR, true, SERIAL_MSG_BUFFER);
     }
 
+    // void println_info(const char* message)
+    // {
+    //     data->print_buffer(PRINT_INFO, false, message);
+    //     info->print_buffer(PRINT_INFO, false, message);
+    // }
+
     void print_info(const char* message, ...)
     {
         va_list args;
@@ -384,6 +402,12 @@ namespace dodobot_serial
         data->print_buffer(PRINT_INFO, false, SERIAL_MSG_BUFFER);
         info->print_buffer(PRINT_INFO, false, SERIAL_MSG_BUFFER);
     }
+
+    // void print_error(const char* message)
+    // {
+    //     data->print_buffer(PRINT_ERROR, false, message);
+    //     info->print_buffer(PRINT_ERROR, false, message);
+    // }
 
     void print_error(const char* message, ...)
     {
