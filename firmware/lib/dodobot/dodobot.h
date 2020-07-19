@@ -14,6 +14,10 @@ namespace dodobot
     uint32_t state_report_timer = 0;
     const uint32_t STATE_SAMPLERATE_DELAY_MS = 100;
 
+    uint32_t prev_loop_timer = 0;
+    uint32_t loop_report_sum = 0;
+    uint32_t loop_report_counter = 0;
+
     void soft_restart()
     {
         DATA_SERIAL.end();  // clears the serial monitor  if used
@@ -64,16 +68,27 @@ namespace dodobot
         if (!robot_state.is_reporting_enabled) {
             return;
         }
+        uint32_t current_time = micros();
+        loop_report_sum += current_time - prev_loop_timer;
+        loop_report_counter++;
+        prev_loop_timer = current_time;
+
         if (CURRENT_TIME - state_report_timer < STATE_SAMPLERATE_DELAY_MS) {
             return;
         }
         state_report_timer = CURRENT_TIME;
+        double loop_rate = (double)loop_report_counter / (double)loop_report_sum * 1E6;
 
-        dodobot_serial::data->write("state", "uddd", CURRENT_TIME,
+        dodobot_serial::data->write("state", "udddf", CURRENT_TIME,
             robot_state.is_active,
             robot_state.battery_ok,
-            robot_state.motors_active
+            robot_state.motors_active,
+            loop_rate
         );
+
+        loop_report_sum = 0;
+        loop_report_counter = 0;
+
     }
 }
 

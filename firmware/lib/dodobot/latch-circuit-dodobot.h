@@ -17,7 +17,7 @@ namespace dodobot_latch_circuit
     const uint32_t USB_CHECK_INTERVAL_MS = 1000;
     uint32_t usb_check_timer = 0;
 
-    const uint32_t LED_CYCLE_INTERVAL_MS = 1;
+    const uint32_t LED_CYCLE_INTERVAL_US = 1000;
     uint32_t led_cycle_timer = 0;
 
     int led_val = 0;
@@ -65,10 +65,10 @@ namespace dodobot_latch_circuit
     bool is_incrementing = false;
     void cycle_led()
     {
-        if (CURRENT_TIME - led_cycle_timer < LED_CYCLE_INTERVAL_MS) {
+        if (micros() - led_cycle_timer < LED_CYCLE_INTERVAL_US) {
             return;
         }
-        led_cycle_timer = CURRENT_TIME;
+        led_cycle_timer = micros();
 
         if (is_incrementing) {
             set_button_led(led_val + 1);

@@ -86,7 +86,7 @@ namespace dodobot_chassis
     bool check_motor_timeout()
     {
         if (!is_active) {
-            return;
+            return true;
         }
         bool timedout = false;
         if (CURRENT_TIME - prev_commandA_time > MOTOR_COMMAND_TIMEOUT_MS) {

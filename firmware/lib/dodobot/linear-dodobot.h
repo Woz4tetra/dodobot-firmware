@@ -13,6 +13,7 @@
 
 namespace dodobot_linear
 {
+    const int baudrate = 115385;
     // TIC Stepper controller
     TicSerial tic(TIC_SERIAL);
 
@@ -36,7 +37,7 @@ namespace dodobot_linear
     int target_velocity = 0;
 
     uint32_t update_timer = 0;
-    const uint32_t UPDATE_DELAY_MS = 50;
+    const uint32_t UPDATE_DELAY_MS = 10;
 
     enum TicPlanningMode planning_mode = TicPlanningMode::Off;  // 0 = off, 1 = position, 2 = velocity
     uint32_t planning_mode_timer = 0;
@@ -63,7 +64,7 @@ namespace dodobot_linear
         }
         is_active = state;
         if (state && dodobot::robot_state.motors_active) {
-            TIC_SERIAL.begin(9600);
+            TIC_SERIAL.begin(baudrate);
             // Give the Tic some time to start up.
             delay(20);
             tic.exitSafeStart();
@@ -236,6 +237,11 @@ namespace dodobot_linear
             return;
         }
 
+        if (CURRENT_TIME - update_timer < UPDATE_DELAY_MS) {
+            return;
+        }
+        update_timer = CURRENT_TIME;
+
         int current_pos = tic.getCurrentPosition();
         switch (get_planning_mode()) {
             case TicPlanningMode::Off: break;
@@ -243,10 +249,6 @@ namespace dodobot_linear
             case TicPlanningMode::TargetVelocity: if (is_velocity_invalid(current_pos))  { stop(); } break;
         }
 
-        if (CURRENT_TIME - update_timer < UPDATE_DELAY_MS) {
-            return;
-        }
-        update_timer = CURRENT_TIME;
 
         tic.resetCommandTimeout();
 
