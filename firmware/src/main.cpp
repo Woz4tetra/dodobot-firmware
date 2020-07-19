@@ -155,7 +155,14 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // shutdown signal
     else if (category.equals("shutdown")) {
-        dodobot_latch_circuit::shutdown();
+        CHECK_SEGMENT(serial_obj);
+        if (serial_obj->get_segment().equals("dodobot")) {
+            dodobot_serial::println_info("Received shutdown signal!");
+            dodobot_latch_circuit::shutdown();
+        }
+        else {
+            dodobot_serial::println_error("Invalid shutdown segment supplied: %s", serial_obj->get_segment().c_str());
+        }
     }
 }
 

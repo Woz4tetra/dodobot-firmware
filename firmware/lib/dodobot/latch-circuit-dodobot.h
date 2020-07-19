@@ -86,6 +86,7 @@ namespace dodobot_latch_circuit
 
     void shutdown() {
         is_shutting_down = true;
+        dodobot::set_motors_active(false);
     }
 
     void update()
@@ -110,7 +111,7 @@ namespace dodobot_latch_circuit
             }
         }
         else {
-            set_button_led(255);
+            set_button_led(0);
         }
         if (prev_button_state != button_state) {
             dodobot_serial::info->write("latch", "ud", CURRENT_TIME, button_state);
