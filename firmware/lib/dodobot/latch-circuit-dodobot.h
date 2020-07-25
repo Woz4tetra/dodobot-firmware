@@ -14,8 +14,13 @@ namespace dodobot_latch_circuit
 
 
     bool usb_connected_once = false;
-    const uint32_t USB_CHECK_INTERVAL_MS = 1000;
+    const uint32_t USB_CHECK_INTERVAL_MS = 100;
     uint32_t usb_check_timer = 0;
+
+    const uint32_t POWER_OFF_THRESHOLD_MS = 3000;
+    const uint32_t POWER_OFF_WARN_THRESHOLD_MS = 2500;
+    uint32_t power_off_check_timer = 0;
+
 
     const uint32_t LED_CYCLE_INTERVAL_US = 1000;
     uint32_t led_cycle_timer = 0;
@@ -31,7 +36,19 @@ namespace dodobot_latch_circuit
 
 
     bool is_usb_connected() {
-        return digitalRead(USB_SENSE_PIN) == HIGH;
+        if (digitalRead(USB_SENSE_PIN) == HIGH) {
+            power_off_check_timer = CURRENT_TIME;
+        }
+        else {
+            if (CURRENT_TIME - power_off_check_timer > POWER_OFF_WARN_THRESHOLD_MS) {
+                DODOBOT_SERIAL_WRITE_BOTH("unlatch", "u", CURRENT_TIME);
+            }
+
+            if (CURRENT_TIME - power_off_check_timer > POWER_OFF_THRESHOLD_MS) {
+                return false;
+            }
+        }
+        return true;
     }
 
     bool is_button_pushed() {
@@ -117,7 +134,7 @@ namespace dodobot_latch_circuit
             set_button_led(255);
         }
         if (prev_button_state != button_state) {
-            dodobot_serial::info->write("latch", "ud", CURRENT_TIME, button_state);
+            DODOBOT_SERIAL_WRITE_BOTH("latch_btn", "ud", CURRENT_TIME, button_state);
 
             prev_button_state = button_state;
         }

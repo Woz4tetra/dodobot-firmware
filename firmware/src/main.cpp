@@ -31,7 +31,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         CHECK_SEGMENT(serial_obj);
         if (serial_obj->get_segment().equals("dodobot")) {
             dodobot_serial::println_info("Received ready signal!");
-            DODOBOT_SERIAL_WRITE_BOTH("ready", "us", CURRENT_TIME, "jetson-nano");
+            DODOBOT_SERIAL_WRITE_BOTH("ready", "us", CURRENT_TIME, ROBOT_NAME);
         }
         else {
             dodobot_serial::println_error("Invalid ready segment supplied: %s", serial_obj->get_segment().c_str());

@@ -6,6 +6,7 @@
 #include "serial-dodobot.h"
 
 #define CURRENT_TIME millis()
+#define ROBOT_NAME "jetson-nano"
 
 namespace dodobot
 {
@@ -25,7 +26,6 @@ namespace dodobot
     }
 
     struct state {
-        bool is_active;
         bool is_reporting_enabled;
         bool battery_ok;
         bool motors_active;
@@ -33,7 +33,6 @@ namespace dodobot
     } robot_state;
 
     void init_structs() {
-        robot_state.is_active = false;
         robot_state.is_reporting_enabled = false;
         robot_state.battery_ok = true;
         robot_state.motors_active = false;
@@ -79,8 +78,7 @@ namespace dodobot
         state_report_timer = CURRENT_TIME;
         double loop_rate = (double)loop_report_counter / (double)loop_report_sum * 1E6;
 
-        dodobot_serial::data->write("state", "udddf", CURRENT_TIME,
-            robot_state.is_active,
+        dodobot_serial::data->write("state", "uddf", CURRENT_TIME,
             robot_state.battery_ok,
             robot_state.motors_active,
             loop_rate
