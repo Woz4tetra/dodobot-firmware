@@ -34,9 +34,12 @@ namespace dodobot_latch_circuit
         digitalWrite(UNLATCH_PIN, HIGH);
     }
 
+    bool is_usb_voltage_high() {
+        return digitalRead(USB_SENSE_PIN) == HIGH;
+    }
 
     bool is_usb_connected() {
-        if (digitalRead(USB_SENSE_PIN) == HIGH) {
+        if (is_usb_voltage_high()) {
             power_off_check_timer = CURRENT_TIME;
         }
         else {
@@ -115,7 +118,7 @@ namespace dodobot_latch_circuit
                 }
             }
             else {
-                if (is_usb_connected()) {
+                if (is_usb_voltage_high()) {
                     usb_connected_once = true;
                 }
             }
