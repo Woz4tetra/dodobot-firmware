@@ -145,7 +145,7 @@ namespace dodobot_linear
                 tic.setMaxSpeed(MAX_SPEED);
             }
             else {
-                dodobot_serial::println_error("Can't home stepper. Stepper is errored.");
+                dodobot_serial::println_error("Can't home stepper. Stepper is errored: %d", errors);
                 print_stepper_error(errors);
                 return;
             }

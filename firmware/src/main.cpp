@@ -169,7 +169,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
     else if (category.equals("date")) {
         CHECK_SEGMENT(serial_obj);
         dodobot_menu::date_string = serial_obj->get_segment();
-        prev_date_str_update = CURRENT_TIME;
+        dodobot_menu::prev_date_str_update = CURRENT_TIME;
     }
 }
 

@@ -2,6 +2,10 @@
 #define __DODOBOT_MENU_H__
 
 #include "display-dodobot.h"
+#include "chassis-dodobot.h"
+#include "speed-pid-dodobot.h"
+
+using namespace dodobot_display;
 
 namespace dodobot_menu
 {
@@ -16,7 +20,7 @@ namespace dodobot_menu
     int SCREEN_MID_W = 0;
     int SCREEN_MID_H = 0;
 
-    String date_string = "";
+    String date_string = "00:00:00AM";
     uint32_t prev_date_str_update = 0;
 
     void init_menus()
@@ -51,7 +55,7 @@ namespace dodobot_menu
     uint8_t topbar_active_icon_r = topbar_icon_r;
     void draw_active_icon()
     {
-        if (dodobot::robot_state.is_active) {
+        if (dodobot::robot_state.motors_active) {
             tft.fillCircle(topbar_active_icon_x, topbar_active_icon_y, topbar_active_icon_r, ST77XX_GREEN);
         }
         else {
@@ -221,23 +225,22 @@ namespace dodobot_menu
 
     void drive_robot_forward(double speed_tps)
     {
-        dodobot_pid::update_setpointA(speed_tps);  // ticks per s
-        dodobot_pid::update_setpointB(speed_tps);  // ticks per s
+        dodobot_speed_pid::update_setpointA(speed_tps);  // ticks per s
+        dodobot_speed_pid::update_setpointB(speed_tps);  // ticks per s
     }
 
     void rotate_robot(double speed_tps)
     {
-        dodobot_pid::update_setpointA(speed_tps);  // ticks per s
-        dodobot_pid::update_setpointB(-speed_tps);  // ticks per s
+        dodobot_speed_pid::update_setpointA(speed_tps);  // ticks per s
+        dodobot_speed_pid::update_setpointB(-speed_tps);  // ticks per s
     }
 
     void draw_drive_menu()
     {
         int y_offset = TOP_BAR_H + 5;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("A: " + String(dodobot_encoders::encA_pos) + "  " + String(dodobot_encoders::enc_speedA) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("B: " + String(dodobot_encoders::encB_pos) + "  " + String(dodobot_encoders::enc_speedB) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("m: " + String(dodobot_motors::motorA.getSpeed()) + "  " + String(dodobot_motors::motorB.getSpeed()) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("move: " + String(dodobot_motors::is_moving_forward()) + "  " + String(dodobot_motors::is_moving()) + "   "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("A: " + String(dodobot_chassis::encA_pos) + "  " + String(dodobot_chassis::enc_speedA) + "   "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("B: " + String(dodobot_chassis::encB_pos) + "  " + String(dodobot_chassis::enc_speedB) + "   "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("m: " + String(dodobot_chassis::motorA.getSpeed()) + "  " + String(dodobot_chassis::motorB.getSpeed()) + "   "); y_offset += ROW_SIZE;
     }
 
     //
