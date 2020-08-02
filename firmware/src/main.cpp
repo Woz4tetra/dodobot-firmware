@@ -10,6 +10,7 @@
 #include "chassis-dodobot.h"
 #include "speed-pid-dodobot.h"
 #include "latch-circuit-dodobot.h"
+#include "menu-dodobot.h"
 
 
 void set_active(bool state)
@@ -164,6 +165,12 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
             dodobot_serial::println_error("Invalid shutdown segment supplied: %s", serial_obj->get_segment().c_str());
         }
     }
+
+    else if (category.equals("date")) {
+        CHECK_SEGMENT(serial_obj);
+        dodobot_menu::date_string = serial_obj->get_segment();
+        prev_date_str_update = CURRENT_TIME;
+    }
 }
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
@@ -179,13 +186,23 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
         case 0x20df: dodobot_serial::println_info("IR: SETUP"); break;  // SETUP
         case 0xa05f:
             dodobot_serial::println_info("IR: ^");
-            dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() + 10000);
+            // dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() + 10000);
             // dodobot_linear::set_velocity(dodobot_linear::MAX_SPEED);
+            dodobot_menu::up_menu_event();
             break;  // ^
         case 0x609f: dodobot_serial::println_info("IR: MODE"); break;  // MODE
-        case 0x10ef: dodobot_serial::println_info("IR: <"); break;  // <
-        case 0x906f: dodobot_serial::println_info("IR: ENTER"); break;  // ENTER
-        case 0x50af: dodobot_serial::println_info("IR: >"); break;  // >
+        case 0x10ef:
+            dodobot_serial::println_info("IR: <");
+            dodobot_menu::left_menu_event();
+            break;  // <
+        case 0x906f:
+            dodobot_serial::println_info("IR: ENTER");
+            dodobot_menu::enter_menu_event();
+            break;  // ENTER
+        case 0x50af:
+            dodobot_serial::println_info("IR: >");
+            dodobot_menu::right_menu_event();
+            break;  // >
         case 0x30cf:
             dodobot_serial::println_info("IR: 0 10+");
             dodobot::robot_state.is_reporting_enabled = !dodobot::robot_state.is_reporting_enabled;
@@ -193,48 +210,52 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             break;  // 0 10+
         case 0xb04f:
             dodobot_serial::println_info("IR: v");
-            dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() - 10000);
+            // dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() - 10000);
             // dodobot_linear::set_velocity(-dodobot_linear::MAX_SPEED);
+            dodobot_menu::down_menu_event();
             break;  // v
-        case 0x708f: dodobot_serial::println_info("IR: Del"); break;  // Del
+        case 0x708f:
+            dodobot_serial::println_info("IR: Del");
+            dodobot_menu::back_menu_event();
+            break;  // Del
         case 0x08f7:
             dodobot_serial::println_info("IR: 1");
-            dodobot_gripper::toggle_gripper();
+            // dodobot_gripper::toggle_gripper();
             break;  // 1
         case 0x8877:
             dodobot_serial::println_info("IR: 2");
-            dodobot_speed_pid::update_setpointA(3000);
-            dodobot_speed_pid::update_setpointB(3000);
+            // dodobot_speed_pid::update_setpointA(3000);
+            // dodobot_speed_pid::update_setpointB(3000);
             // dodobot_chassis::set_motorA(255);
             // dodobot_chassis::set_motorB(255);
             break;  // 2
         case 0x48B7: dodobot_serial::println_info("IR: 3"); break;  // 3
         case 0x28D7:
             dodobot_serial::println_info("IR: 4");
-            dodobot_speed_pid::update_setpointA(-3000);
-            dodobot_speed_pid::update_setpointB(3000);
+            // dodobot_speed_pid::update_setpointA(-3000);
+            // dodobot_speed_pid::update_setpointB(3000);
             break;  // 4
         case 0xA857:
             dodobot_serial::println_info("IR: 5");
-            dodobot_speed_pid::update_setpointA(0);
-            dodobot_speed_pid::update_setpointB(0);
+            // dodobot_speed_pid::update_setpointA(0);
+            // dodobot_speed_pid::update_setpointB(0);
             break;  // 5
         case 0x6897:
             dodobot_serial::println_info("IR: 6");
-            dodobot_speed_pid::update_setpointA(3000);
-            dodobot_speed_pid::update_setpointB(-3000);
+            // dodobot_speed_pid::update_setpointA(3000);
+            // dodobot_speed_pid::update_setpointB(-3000);
             break;  // 6
         case 0x18E7: dodobot_serial::println_info("IR: 7"); break;  // 7
         case 0x9867:
             dodobot_serial::println_info("IR: 8");
-            dodobot_speed_pid::update_setpointA(-3000);
-            dodobot_speed_pid::update_setpointB(-3000);
+            // dodobot_speed_pid::update_setpointA(-3000);
+            // dodobot_speed_pid::update_setpointB(-3000);
             // dodobot_chassis::set_motorA(-255);
             // dodobot_chassis::set_motorB(-255);
             break;  // 8
         case 0x58A7:
             dodobot_serial::println_info("IR: 9");
-            dodobot_linear::home_stepper();
+            // dodobot_linear::home_stepper();
             break;  // 9
     }
 }
@@ -243,16 +264,18 @@ void setup()
 {
     dodobot::setup();
     dodobot_serial::setup_serial();
-    dodobot_ir_remote::setup_IR();
-    dodobot_i2c::setup_i2c();
-    dodobot_power_monitor::setup_INA219();
-    dodobot_display::setup_display();
-    dodobot_gripper::setup_gripper();
-    dodobot_tilter::setup_tilter();
-    dodobot_linear::setup_linear();
-    dodobot_chassis::setup_chassis();
-    dodobot_speed_pid::setup_pid();
-    dodobot_latch_circuit::setup_latch();
+    dodobot_display::setup_display();  tft.print("Display ready\n");
+    dodobot_ir_remote::setup_IR();  tft.print("IR ready\n");
+    dodobot_i2c::setup_i2c();  tft.print("I2C ready\n");
+    dodobot_power_monitor::setup_INA219();  tft.print("INA219 ready\n");
+    dodobot_gripper::setup_gripper();  tft.print("Gripper ready\n");
+    dodobot_tilter::setup_tilter();  tft.print("Tilter ready\n");
+    dodobot_linear::setup_linear();  tft.print("Linear ready\n");
+    dodobot_chassis::setup_chassis();  tft.print("Drive motors ready\n");
+    dodobot_speed_pid::setup_pid();  tft.print("Speed PID ready\n");
+    dodobot_latch_circuit::setup_latch();  tft.print("Latch ready\n");
+    dodobot_menu::init_menus();
+    tft.print("Dodobot is ready to go!\n");
 }
 
 void loop()
@@ -276,4 +299,5 @@ void loop()
     dodobot_chassis::update();
     dodobot_speed_pid::update_speed_pid();
     dodobot_latch_circuit::update();
+    dodobot_menu::draw_menus();
 }
