@@ -81,7 +81,7 @@ namespace dodobot_linear
     void setup_linear()
     {
         pinMode(HOMING_PIN, INPUT_PULLUP);
-        pinMode(ERROR_PIN, INPUT_PULLUP);
+        pinMode(ERROR_PIN, INPUT);
         pinMode(RESET_PIN, OUTPUT);
 
         digitalWrite(RESET_PIN, HIGH);
@@ -164,7 +164,7 @@ namespace dodobot_linear
         while (is_home_pin_active()) {
             tic.resetCommandTimeout();
         }
-        delay(200);
+        delay(25);
 
         // Move down more slowly to get a more accurate reading
         tic.setTargetVelocity(-50000000);
