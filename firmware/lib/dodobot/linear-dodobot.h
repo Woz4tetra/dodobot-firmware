@@ -80,8 +80,8 @@ namespace dodobot_linear
 
     void setup_linear()
     {
-        pinMode(HOMING_PIN, INPUT);
-        pinMode(ERROR_PIN, INPUT);
+        pinMode(HOMING_PIN, INPUT_PULLUP);
+        pinMode(ERROR_PIN, INPUT_PULLUP);
         pinMode(RESET_PIN, OUTPUT);
 
         digitalWrite(RESET_PIN, HIGH);
