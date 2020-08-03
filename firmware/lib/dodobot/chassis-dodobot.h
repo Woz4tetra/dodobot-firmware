@@ -159,8 +159,8 @@ namespace dodobot_chassis
     {
         reset_encoders();
         setup_motors();
-        // pinMode(REAR_BUMPER_1, INPUT);
-        // pinMode(REAR_BUMPER_2, INPUT);
+        // pinMode(REAR_BUMPER_1, INPUT_PULLUP);
+        // pinMode(REAR_BUMPER_2, INPUT_PULLUP);
     }
 
     void update()

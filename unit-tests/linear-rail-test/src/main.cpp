@@ -59,7 +59,7 @@ void setup_stepper()
 
     // stepper_enc.write(0);
 
-    pinMode(HOMING_PIN, INPUT);
+    pinMode(HOMING_PIN, INPUT_PULLUP);
     // pinMode(MOTOR_STBY, OUTPUT);
     // set_motors_active(true);
 }
