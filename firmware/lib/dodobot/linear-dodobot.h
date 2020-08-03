@@ -164,6 +164,7 @@ namespace dodobot_linear
         while (is_home_pin_active()) {
             tic.resetCommandTimeout();
         }
+        delay(200);
 
         // Move down more slowly to get a more accurate reading
         tic.setTargetVelocity(-50000000);

@@ -14,7 +14,7 @@ namespace dodobot_tilter
     Servo tilter_servo;
     const int TILTER_PIN = 16;
 
-    const int TILTER_DOWN = 10;
+    const int TILTER_DOWN = 5;
     const int TILTER_UP = 170;
     int tilter_pos = 0;
 
