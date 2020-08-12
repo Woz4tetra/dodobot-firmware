@@ -9,19 +9,22 @@ const uint32_t report_interval_ms = 250;
 #define CURRENT_TIME millis()
 
 // TIC Stepper controller
-#define TIC_SERIAL Serial4
+#define BAUD_RATE 115385
+#define TIC_SERIAL Serial1
 TicSerial tic(TIC_SERIAL);
 
 // Homing switch
 #define HOMING_PIN 39
-
 #define MOTOR_STBY 26
 
+const int MAX_POSITION = 85000;
 
 // Encoder
-// #define STEPPER_ENCA 24
-// #define STEPPER_ENCB 25
-// Encoder stepper_enc(STEPPER_ENCA, STEPPER_ENCB);
+#define STEPPER_ENCA 31
+#define STEPPER_ENCB 32
+long encoder_pos = 0;
+
+Encoder stepper_enc(STEPPER_ENCB, STEPPER_ENCA);
 
 bool is_homed = false;
 const int max_position = 85000;
@@ -29,6 +32,13 @@ const int max_position = 85000;
 const int max_speed = 200000000;
 
 bool are_motors_active = false;
+
+
+void reset_encoder()
+{
+    encoder_pos = 0;
+    stepper_enc.write(0);
+}
 
 
 void set_motors_active(bool active)
@@ -51,13 +61,13 @@ bool is_home_pin_active() {
 
 void setup_stepper()
 {
-    TIC_SERIAL.begin(9600);
+    TIC_SERIAL.begin(BAUD_RATE);
     // Give the Tic some time to start up.
     delay(20);
     tic.exitSafeStart();
     tic.setMaxSpeed(max_speed);
 
-    // stepper_enc.write(0);
+    reset_encoder();
 
     pinMode(HOMING_PIN, INPUT_PULLUP);
     // pinMode(MOTOR_STBY, OUTPUT);
@@ -66,6 +76,13 @@ void setup_stepper()
 
 void waitForPosition(int32_t targetPosition)
 {
+    if (targetPosition > MAX_POSITION) {
+        targetPosition = MAX_POSITION;
+    }
+    if (targetPosition < 0) {
+        targetPosition = 0;
+    }
+
     tic.setTargetPosition(targetPosition);
     do
     {
@@ -106,7 +123,7 @@ void home_stepper()
 
     tic.haltAndSetPosition(0);
     delay(50);
-    // stepper_enc.write(0);
+    reset_encoder();
     delay(50);
     waitForPosition(10000);
 
@@ -147,22 +164,28 @@ void loop()
             }
         }
         else if (c == 'd') {
-            tic.setTargetVelocity(-max_speed);
-            delayWhileResettingCommandTimeout(500);
-            tic.haltAndHold();
+            // tic.setTargetVelocity(-max_speed);
+            // delayWhileResettingCommandTimeout(500);
+            // tic.haltAndHold();
+            waitForPosition(tic.getCurrentPosition() - 5000);
         }
         else if (c == 'u') {
-            tic.setTargetVelocity(max_speed);
-            delayWhileResettingCommandTimeout(500);
-            tic.haltAndHold();
+            // tic.setTargetVelocity(max_speed);
+            // delayWhileResettingCommandTimeout(500);
+            // tic.haltAndHold();
+            waitForPosition(tic.getCurrentPosition() + 5000);
         }
         else {
             tic.haltAndHold();
         }
     }
     if (CURRENT_TIME - prev_report_time > report_interval_ms) {
+        encoder_pos = stepper_enc.read();
+
         COMM_SERIAL.print("homing pin:\t");
         COMM_SERIAL.println(is_home_pin_active());
+        COMM_SERIAL.print("encoder:\t");
+        COMM_SERIAL.println(encoder_pos);
         COMM_SERIAL.print("position:\t");
         COMM_SERIAL.println(tic.getCurrentPosition());
 

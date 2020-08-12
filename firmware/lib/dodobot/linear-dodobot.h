@@ -7,7 +7,7 @@
 
 #include "dodobot.h"
 
-#define TIC_SERIAL Serial4
+#define TIC_SERIAL Serial1
 
 #define RESET_PIN A22
 
@@ -23,9 +23,10 @@ namespace dodobot_linear
     const int HOMING_PIN = 39;
 
     // Encoder
-    // const int STEPPER_ENCA = 24;
-    // const int STEPPER_ENCB = 25;
-    // Encoder stepper_enc(STEPPER_ENCA, STEPPER_ENCB);
+    const int STEPPER_ENCA = 31;
+    const int STEPPER_ENCB = 32;
+    Encoder stepper_enc(STEPPER_ENCB, STEPPER_ENCA);
+    long encoder_pos = 0;
 
     bool is_homed = false;
     bool is_active = false;
@@ -49,6 +50,12 @@ namespace dodobot_linear
 
     bool is_errored() {
         return digitalRead(ERROR_PIN) == HIGH;
+    }
+
+    void reset_encoder()
+    {
+        encoder_pos = 0;
+        stepper_enc.write(0);
     }
 
     void reset()
@@ -87,6 +94,7 @@ namespace dodobot_linear
         digitalWrite(RESET_PIN, HIGH);
 
         set_active(false);
+        reset_encoder();
     }
 
 
@@ -174,7 +182,7 @@ namespace dodobot_linear
 
         tic.haltAndSetPosition(0);
         delay(50);
-        // stepper_enc.write(0);
+        reset_encoder();
         delay(50);
         waitForPosition(10000);
 

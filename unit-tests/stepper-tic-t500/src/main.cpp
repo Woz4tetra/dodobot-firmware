@@ -1,10 +1,13 @@
 #include <Arduino.h>
 #include <Tic_Teensy.h>
+// #include <SoftwareSerial.h>
 
 #define COMM_SERIAL Serial
 
 // TIC Stepper controller
-#define TIC_SERIAL Serial4
+#define TIC_SERIAL Serial1
+
+// SoftwareSerial TIC_SERIAL(1, 0);
 TicSerial tic(TIC_SERIAL);
 
 
@@ -48,7 +51,7 @@ void waitForPosition(int32_t targetPosition)
 void setup()
 {
     COMM_SERIAL.begin(9600);
-    TIC_SERIAL.begin(9600);
+    TIC_SERIAL.begin(115385);
     // Give the Tic some time to start up.
     delay(20);
     tic.exitSafeStart();
