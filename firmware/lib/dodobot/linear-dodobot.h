@@ -25,20 +25,21 @@ namespace dodobot_linear
     const int HOMING_PIN = 39;
 
     // Positioning constants
-    const double STEPPER_GEARBOX_RATIO = 26 + 103 / 121;
-    const int ENCODER_TICKS_PER_R_NO_GEARBOX = 40;
-    const int STEPPER_TICKS_PER_R_NO_GEARBOX = 200;
-
-    const double ENCODER_TICKS_PER_R = ENCODER_TICKS_PER_R_NO_GEARBOX * STEPPER_GEARBOX_RATIO;
-    const double STEPPER_TICKS_PER_R = STEPPER_TICKS_PER_R_NO_GEARBOX * STEPPER_GEARBOX_RATIO;
-    const double ENC_TO_STEP_TICKS = (double)STEPPER_TICKS_PER_R_NO_GEARBOX / ENCODER_TICKS_PER_R_NO_GEARBOX;
+    // const double STEPPER_GEARBOX_RATIO = 26 + 103 / 121;
+    // const int ENCODER_TICKS_PER_R_NO_GEARBOX = 40;
+    // const int STEPPER_TICKS_PER_R_NO_GEARBOX = 200;
+    //
+    // const double ENCODER_TICKS_PER_R = ENCODER_TICKS_PER_R_NO_GEARBOX * STEPPER_GEARBOX_RATIO;
+    // const double STEPPER_TICKS_PER_R = STEPPER_TICKS_PER_R_NO_GEARBOX * STEPPER_GEARBOX_RATIO;
+    // const double ENC_TO_STEP_TICKS = (double)STEPPER_TICKS_PER_R_NO_GEARBOX / ENCODER_TICKS_PER_R_NO_GEARBOX;
+    const double ENC_TO_STEP_TICKS = 12.5;
 
     const int MAX_POSITION = 85000;
-    const int MAX_SPEED = 200000000;
+    const int MAX_SPEED = 300000000;
     // const uint32_t MAX_SPEED = 420000000;
 
     const int POSITION_BUFFER = 500;
-    const int ENCODER_POSITION_ERROR = 200;
+    const int ENCODER_POSITION_ERROR = 7000;
 
     // Encoder
     const int STEPPER_ENCA = 31;
@@ -195,7 +196,7 @@ namespace dodobot_linear
         }
         dodobot_serial::println_info("Running home sequence.");
         // Drive down until the limit switch is found
-        tic.setTargetVelocity(-200000000);
+        tic.setTargetVelocity(-MAX_SPEED);
         while (!is_home_pin_active()) {
             tic.resetCommandTimeout();
         }
@@ -203,7 +204,7 @@ namespace dodobot_linear
         delay(50);
 
         // Move off the homing switch
-        tic.setTargetVelocity(200000000);
+        tic.setTargetVelocity(MAX_SPEED);
         while (is_home_pin_active()) {
             tic.resetCommandTimeout();
         }
@@ -313,6 +314,7 @@ namespace dodobot_linear
         // stop the motor and reset position to the encoder's position
         if (has_position_error(stepper_pos)) {
             reset_to_enc_position();
+            dodobot_serial::println_error("Position error!");
         }
 
         tic.resetCommandTimeout();
