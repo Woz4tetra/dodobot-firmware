@@ -6,10 +6,12 @@
 Servo gripper_servo;
 #define GRIPPER_PIN 17
 
+#define INVERT_GRIPPER_SERVO
+
 #define MAX_POS 180
 #define MIN_POS 0
-#define OPEN_POS 20
-#define CLOSE_POS 170
+#define OPEN_POS 30
+#define CLOSE_POS 160
 int gripper_pos = 0;
 
 // FSRs
@@ -28,6 +30,19 @@ int get_right_fsr() {
     return analogRead(FSR_RIGHT_PIN);
 }
 
+void set_servo(int pos)
+{
+    pos = max(MIN_POS, min(pos, MAX_POS));
+
+    #ifdef INVERT_GRIPPER_SERVO
+    gripper_servo.write(MAX_POS - pos);
+    #else
+    gripper_servo.write(pos);
+    #endif
+
+    gripper_pos = pos;
+}
+
 
 bool fsrs_activated(int threshold) {
     return get_left_fsr() > threshold || get_right_fsr() > threshold;
@@ -35,19 +50,17 @@ bool fsrs_activated(int threshold) {
 
 void open_gripper()
 {
-    gripper_pos = OPEN_POS;
-    gripper_servo.write(gripper_pos);
+    set_servo(OPEN_POS);
 }
 
 void close_gripper(int threshold)
 {
     while (!fsrs_activated(threshold)) {
-        gripper_pos += 1;
-        if (gripper_pos > CLOSE_POS) {
+        if (gripper_pos >= CLOSE_POS) {
             return;
         }
-        gripper_servo.write(gripper_pos);
-        delay(5);
+        set_servo(gripper_pos + 1);
+        delay(10);
     }
 }
 
@@ -75,10 +88,17 @@ void loop()
                     grip_threshold = command.substring(1).toInt();
                 }
                 close_gripper(grip_threshold);
+                COMM_SERIAL.print("pos:\t");
+                COMM_SERIAL.println(gripper_pos);
             }
             else {
                 open_gripper();
             }
+        }
+        else {
+            int pos = command.toInt();
+            COMM_SERIAL.println(pos);
+            set_servo(pos);
         }
     }
 

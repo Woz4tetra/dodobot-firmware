@@ -14,10 +14,12 @@ namespace dodobot_gripper
     Servo gripper_servo;
     const int GRIPPER_PIN = 17;
 
+    #define INVERT_GRIPPER_SERVO
+
     const int MAX_POS = 180;
     const int MIN_POS = 0;
-    const int OPEN_POS = 20;
-    const int CLOSE_POS = 170;
+    const int OPEN_POS = 30;
+    const int CLOSE_POS = 160;
     const int DEFAULT_GRIP_THRESHOLD = 40;
 
     uint32_t grip_report_timer = 0;
@@ -50,12 +52,24 @@ namespace dodobot_gripper
 
     // Gripper actions
 
+    void set_servo(int pos)
+    {
+        pos = max(MIN_POS, min(pos, MAX_POS));
+
+        #ifdef INVERT_GRIPPER_SERVO
+        gripper_servo.write(MAX_POS - pos);
+        #else
+        gripper_servo.write(pos);
+        #endif
+
+        gripper_pos = pos;
+    }
+
     void report_gripper_pos();
 
     void open_gripper()
     {
-        gripper_pos = OPEN_POS;
-        gripper_servo.write(gripper_pos);
+        set_servo(OPEN_POS);
         grip_reached = true;
         report_gripper_pos();
     }
@@ -105,8 +119,7 @@ namespace dodobot_gripper
             report_gripper_pos();
             return;
         }
-        gripper_pos += 1;
-        gripper_servo.write(gripper_pos);
+        set_servo(gripper_pos + 1);
     }
 
     void set_active(bool state) {

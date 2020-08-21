@@ -3,7 +3,10 @@
 
 #include "display-dodobot.h"
 #include "chassis-dodobot.h"
+#include "linear-dodobot.h"
+#include "tilter-dodobot.h"
 #include "speed-pid-dodobot.h"
+#include "gripper-dodobot.h"
 
 using namespace dodobot_display;
 
@@ -141,6 +144,7 @@ namespace dodobot_menu
         DRIVE_MENU,
         LINEAR_MENU,
         TILTER_MENU,
+        GRIPPER_MENU,
         SHUTDOWN_MENU,
         NONE_MENU,
         NOTIFICATION_MENU
@@ -151,17 +155,19 @@ namespace dodobot_menu
         DRIVE_MENU,
         LINEAR_MENU,
         TILTER_MENU,
+        GRIPPER_MENU,
         SHUTDOWN_MENU
     };
 
     const char* const MAIN_MENU_ENTRIES[] PROGMEM = {
         "Sensors",
         "Drive Motors",
-        "Front Loader",
+        "Linear",
         "Camera Tilter",
+        "Gripper",
         "Shutdown/restart"
     };
-    const int MAIN_MENU_ENTRIES_LEN = 5;
+    const int MAIN_MENU_ENTRIES_LEN = 6;
 
     menu_names DISPLAYED_MENU = MAIN_MENU;
     menu_names PREV_DISPLAYED_MENU = NONE_MENU;  // for detecting screen change events
@@ -238,9 +244,9 @@ namespace dodobot_menu
     void draw_drive_menu()
     {
         int y_offset = TOP_BAR_H + 5;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("A: " + String(dodobot_chassis::encA_pos) + "  " + String(dodobot_chassis::enc_speedA) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("B: " + String(dodobot_chassis::encB_pos) + "  " + String(dodobot_chassis::enc_speedB) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("m: " + String(dodobot_chassis::motorA.getSpeed()) + "  " + String(dodobot_chassis::motorB.getSpeed()) + "   "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("A: " + String(dodobot_chassis::encA_pos) + "  " + String(dodobot_chassis::enc_speedA) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("B: " + String(dodobot_chassis::encB_pos) + "  " + String(dodobot_chassis::enc_speedB) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("m: " + String(dodobot_chassis::motorA.getSpeed()) + "  " + String(dodobot_chassis::motorB.getSpeed()) + "       "); y_offset += ROW_SIZE;
     }
 
     //
@@ -249,7 +255,12 @@ namespace dodobot_menu
 
     void draw_linear_menu()
     {
-
+        int y_offset = TOP_BAR_H + 5;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("step: " + String(dodobot_linear::enc_as_step_ticks()) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("enc: " + String(dodobot_linear::stepper_pos) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("error: " + String(dodobot_linear::is_errored()) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("moving: " + String(dodobot_linear::is_moving) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("homed: " + String(dodobot_linear::is_homed) + "       "); y_offset += ROW_SIZE;
     }
 
     //
@@ -258,7 +269,19 @@ namespace dodobot_menu
 
     void draw_tilter_menu()
     {
+        int y_offset = TOP_BAR_H + 5;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("pos: " + String(dodobot_tilter::tilter_pos) + "       "); y_offset += ROW_SIZE;
+    }
 
+    //
+    // Gripper menu
+    //
+    void draw_gripper_menu()
+    {
+        int y_offset = TOP_BAR_H + 5;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("L: " + String(dodobot_gripper::get_left_fsr()) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("R: " + String(dodobot_gripper::get_right_fsr()) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("pos: " + String(dodobot_gripper::gripper_pos) + "       "); y_offset += ROW_SIZE;
     }
 
     //
@@ -588,6 +611,7 @@ namespace dodobot_menu
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "v");
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX += 1; break;
+            case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position - 5000); break;
             case DRIVE_MENU: drive_robot_forward(-3000.0); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX += 1; break;
             default: break;
@@ -598,6 +622,7 @@ namespace dodobot_menu
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "^");
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX -= 1; break;
+            case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position + 5000); break;
             case DRIVE_MENU: drive_robot_forward(3000.0); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX -= 1; break;
             default: break;
@@ -607,7 +632,7 @@ namespace dodobot_menu
     void left_menu_event() {
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "<");
         switch (DISPLAYED_MENU) {
-            case DRIVE_MENU: rotate_robot(-32000.0); break;
+            case DRIVE_MENU: rotate_robot(-2000.0); break;
             default: break;
             // add new menu entry callbacks (if needed)
         }
@@ -627,6 +652,9 @@ namespace dodobot_menu
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: DISPLAYED_MENU = MAIN_MENU_ENUM_MAPPING[MAIN_MENU_SELECT_INDEX]; break;
             case DRIVE_MENU: drive_robot_forward(0.0); break;
+            case LINEAR_MENU: dodobot_linear::home_stepper(); break;
+            case TILTER_MENU: dodobot_tilter::tilter_toggle(); break;
+            case GRIPPER_MENU: dodobot_gripper::toggle_gripper(100); break;
             case SHUTDOWN_MENU: shutdown_menu_enter_event(); break;
             default: break;
             // add new menu entry callbacks (if needed)
@@ -665,6 +693,7 @@ namespace dodobot_menu
             case DRIVE_MENU: draw_drive_menu(); break;
             case LINEAR_MENU: draw_linear_menu(); break;
             case TILTER_MENU: draw_tilter_menu(); break;
+            case GRIPPER_MENU: draw_gripper_menu(); break;
             case SHUTDOWN_MENU: draw_shutdown_menu(); break;
             default: break;
             // add new menu entry callbacks

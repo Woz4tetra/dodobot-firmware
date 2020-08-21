@@ -113,7 +113,6 @@ namespace dodobot_linear
             tic.exitSafeStart();
             tic.setMaxSpeed(MAX_SPEED);
             reset_encoder();
-            is_homed = true;
         }
         else {
             TIC_SERIAL.end();
