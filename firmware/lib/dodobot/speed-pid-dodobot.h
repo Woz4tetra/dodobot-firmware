@@ -151,8 +151,7 @@ namespace dodobot_speed_pid
 
         motorA_cmd = motorA_pid.compute(dodobot_chassis::enc_speedA);
         motorB_cmd = motorB_pid.compute(dodobot_chassis::enc_speedB);
-        dodobot_chassis::set_motorA(motorA_cmd);
-        dodobot_chassis::set_motorB(motorB_cmd);
+        dodobot_chassis::set_motors(motorA_cmd, motorB_cmd);
     }
 
     void set_speed_pid(bool enabled) {

@@ -18,6 +18,8 @@ namespace dodobot_chassis
     const int MOTORB_DR2 = 37;
     const int MOTORA_PWM = 29;
     const int MOTORB_PWM = 30;
+    const int BUMP1_PIN = 3;
+    const int BUMP2_PIN = 5;
 
     const int MOTOR_COMMAND_TIMEOUT_MS = 1000;
 
@@ -48,8 +50,43 @@ namespace dodobot_chassis
     double speed_smooth_kB = 1.0;
 
     // Bumpers
-    // const int REAR_BUMPER_1 = 0;
-    // const int REAR_BUMPER_2 = 1;
+    void setup_bumpers()
+    {
+        pinMode(BUMP1_PIN, INPUT_PULLUP);
+        pinMode(BUMP2_PIN, INPUT_PULLUP);
+    }
+
+
+    bool is_bump1_active() {
+        return digitalRead(BUMP1_PIN) == LOW;
+    }
+
+    bool is_bump2_active() {
+        return digitalRead(BUMP2_PIN) == LOW;
+    }
+
+    // Speed check functions
+
+    bool is_obstacle_in_front() {
+        return false;
+    }
+
+    bool is_obstacle_in_back() {
+        return is_bump1_active() || is_bump2_active();
+    }
+
+    bool is_moving() {
+        return motorA.getSpeed() != 0 || motorB.getSpeed() != 0;
+    }
+    bool is_moving(int speedA, int speedB) {  // check a command that's about to send
+        return speedA != 0 || speedB != 0;
+    }
+    bool is_moving_forward() {
+        return motorA.getSpeed() + motorB.getSpeed() >= 0;
+    }
+    bool is_moving_forward(int speedA, int speedB) {
+        return (speedA + speedB) >> 1 >= 0;
+    }
 
     // DC motor functions
 
@@ -58,7 +95,6 @@ namespace dodobot_chassis
         motorA.begin();
         motorB.begin();
     }
-
 
     void reset_motor_timeouts()
     {
@@ -80,6 +116,20 @@ namespace dodobot_chassis
         }
         reset_motor_timeouts();
         motorB.setSpeed(speed);
+    }
+
+    void set_motors(int speedA, int speedB)
+    {
+        if (is_obstacle_in_front() && is_moving_forward(speedA, speedB)) {  // if an obstacle is detected in the front, only allow backwards commands
+            speedA = 0;
+            speedB = 0;
+        }
+        if (is_obstacle_in_back() && !is_moving_forward(speedA, speedB)) {  // if an obstacle is detected in the back, only allow forwards commands
+            speedA = 0;
+            speedB = 0;
+        }
+        set_motorA(speedA);
+        set_motorB(speedB);
     }
 
 
@@ -159,8 +209,7 @@ namespace dodobot_chassis
     {
         reset_encoders();
         setup_motors();
-        // pinMode(REAR_BUMPER_1, INPUT_PULLUP);
-        // pinMode(REAR_BUMPER_2, INPUT_PULLUP);
+        setup_bumpers();
     }
 
     void update()
