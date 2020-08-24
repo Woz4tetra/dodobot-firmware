@@ -26,6 +26,7 @@ namespace dodobot_latch_circuit
     uint32_t led_cycle_timer = 0;
 
     int led_val = 0;
+    bool button_state = false;
     bool prev_button_state = false;
     bool is_shutting_down = false;
 
@@ -111,6 +112,18 @@ namespace dodobot_latch_circuit
 
     void update()
     {
+        if (button_state) {
+            if (!is_shutting_down) {
+                cycle_led();
+            }
+        }
+        else if (is_shutting_down) {
+            set_button_led(0);
+        }
+        else {
+            set_button_led(255);
+        }
+        
         if (CURRENT_TIME - usb_check_timer < USB_CHECK_INTERVAL_MS) {
             return;
         }
@@ -126,18 +139,8 @@ namespace dodobot_latch_circuit
             }
         }
 
-        bool button_state = is_button_pushed();
-        if (button_state) {
-            if (!is_shutting_down) {
-                cycle_led();
-            }
-        }
-        else if (is_shutting_down) {
-            set_button_led(0);
-        }
-        else {
-            set_button_led(255);
-        }
+        button_state = is_button_pushed();
+
         if (prev_button_state != button_state) {
             DODOBOT_SERIAL_WRITE_BOTH("latch_btn", "ud", CURRENT_TIME, button_state);
 
