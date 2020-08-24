@@ -19,7 +19,7 @@ namespace dodobot_gripper
     const int MAX_POS = 180;
     const int MIN_POS = 0;
     const int OPEN_POS = 30;
-    const int CLOSE_POS = 160;
+    const int CLOSE_POS = 180;
     const int DEFAULT_GRIP_THRESHOLD = 40;
 
     uint32_t grip_report_timer = 0;

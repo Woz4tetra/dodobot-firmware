@@ -260,8 +260,18 @@ namespace dodobot_menu
         int y_offset = TOP_BAR_H + 5;
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("step: " + String(dodobot_linear::enc_as_step_ticks()) + "       "); y_offset += ROW_SIZE;
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("enc: " + String(dodobot_linear::stepper_pos) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("vel: " + String(dodobot_linear::stepper_vel) + "            "); y_offset += ROW_SIZE;
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("error: " + String(dodobot_linear::is_errored()) + "       "); y_offset += ROW_SIZE;
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("moving: " + String(dodobot_linear::is_moving) + "       "); y_offset += ROW_SIZE;
+
+        tft.setCursor(BORDER_OFFSET_W, y_offset);
+        switch (dodobot_linear::planning_mode) {
+            case TicPlanningMode::Off: tft.println("mode: Off       "); break;
+            case TicPlanningMode::TargetPosition: tft.println("mode: Position       "); break;
+            case TicPlanningMode::TargetVelocity: tft.println("mode: Velocity       "); break;
+        }
+        y_offset += ROW_SIZE;
+
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("homed: " + String(dodobot_linear::is_homed) + "       "); y_offset += ROW_SIZE;
     }
 

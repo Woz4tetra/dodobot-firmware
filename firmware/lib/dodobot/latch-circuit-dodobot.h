@@ -111,16 +111,18 @@ namespace dodobot_latch_circuit
 
     void update()
     {
-        if (CURRENT_TIME - usb_check_timer > USB_CHECK_INTERVAL_MS) {
-            if (usb_connected_once) {
-                if (!is_usb_connected()) {
-                    unlatch();
-                }
+        if (CURRENT_TIME - usb_check_timer < USB_CHECK_INTERVAL_MS) {
+            return;
+        }
+        usb_check_timer = CURRENT_TIME;
+        if (usb_connected_once) {
+            if (!is_usb_connected()) {
+                unlatch();
             }
-            else {
-                if (is_usb_voltage_high()) {
-                    usb_connected_once = true;
-                }
+        }
+        else {
+            if (is_usb_voltage_high()) {
+                usb_connected_once = true;
             }
         }
 

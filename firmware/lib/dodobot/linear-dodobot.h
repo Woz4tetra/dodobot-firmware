@@ -18,6 +18,7 @@ namespace dodobot_linear
     // TIC Stepper controller
     TicSerial tic(TIC_SERIAL);
     int32_t stepper_pos = 0;
+    int32_t stepper_vel = 0;
 
     const int ERROR_PIN = 15;
 
@@ -51,6 +52,7 @@ namespace dodobot_linear
     bool is_homed = false;
     bool is_active = false;
     bool is_moving = false;
+    bool is_errored_state = false;
     int target_position = 0;
     int target_velocity = 0;
 
@@ -174,24 +176,32 @@ namespace dodobot_linear
             dodobot_serial::println_error("Tic Error: EncoderSkip, %d", errors);
     }
 
+    bool check_errors()
+    {
+        if (is_errored()) {
+            uint16_t errors = tic.getErrorStatus();
+
+            if (errors == 0 || errors & (1 << (uint8_t)TicError::SafeStartViolation)) {
+                tic.exitSafeStart();
+                tic.setMaxSpeed(MAX_SPEED);
+            }
+            else {
+                dodobot_serial::println_error("Stepper is errored: %d", errors);
+                print_stepper_error(errors);
+                return true;
+            }
+        }
+        return false;
+    }
+
     void home_stepper()
     {
         if (!is_active) {
             dodobot_serial::println_error("Can't home stepper. Active flag not set.");
             return;
         }
-        if (is_errored()) {
-            uint16_t errors = tic.getErrorStatus();
-
-            if (errors & (1 << (uint8_t)TicError::SafeStartViolation)) {
-                tic.exitSafeStart();
-                tic.setMaxSpeed(MAX_SPEED);
-            }
-            else {
-                dodobot_serial::println_error("Can't home stepper. Stepper is errored: %d", errors);
-                print_stepper_error(errors);
-                return;
-            }
+        if (check_errors()) {
+            dodobot_serial::println_error("Can't home stepper. Stepper is errored.");
         }
         dodobot_serial::println_info("Running home sequence.");
         // Drive down until the limit switch is found
@@ -295,6 +305,12 @@ namespace dodobot_linear
             dodobot_serial::data->write("linear", "uddddd", CURRENT_TIME, stepper_pos, encoder_pos, is_errored(), is_homed, is_active);
         }
 
+        bool error_state = is_errored();
+        if (error_state != is_errored_state && error_state) {
+            tic.haltAndHold();
+            check_errors();
+        }
+
         // If the stepper isn't moving and the linear slide hasn't been pushed, do nothing
         if (!is_moving && !has_been_pushed()) {
             return;
@@ -303,6 +319,13 @@ namespace dodobot_linear
         // Check if stepper is moving to position, moving with velocity, or no moving
         // Check if stepper position has exceeded the boundaries
         stepper_pos = tic.getCurrentPosition();
+        int32_t vel = tic.getCurrentVelocity();
+        if (vel != stepper_vel) {
+            stepper_vel = vel;
+            if (stepper_vel == 0) {
+                tic.haltAndHold();
+            }
+        }
         switch (get_planning_mode()) {
             case TicPlanningMode::Off: is_moving = false; break;
             case TicPlanningMode::TargetPosition: if (is_position_invalid(stepper_pos))  { stop(); } break;
