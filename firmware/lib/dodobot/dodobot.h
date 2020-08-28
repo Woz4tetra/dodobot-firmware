@@ -6,7 +6,7 @@
 #include "serial-dodobot.h"
 
 #define CURRENT_TIME millis()
-#define ROBOT_NAME "jetson-nano"
+#define ROBOT_NAME "chansey"
 
 namespace dodobot
 {
