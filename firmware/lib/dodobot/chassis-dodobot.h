@@ -35,7 +35,7 @@ namespace dodobot_chassis
     const int MOTORB_ENCA = 21;
     const int MOTORB_ENCB = 20;
 
-    const int ENCODER_SAMPLERATE_DELAY_MS = 33;
+    const int ENCODER_SAMPLERATE_DELAY_MS = 10;
 
     Encoder motorA_enc(MOTORA_ENCB, MOTORA_ENCA);
     Encoder motorB_enc(MOTORB_ENCA, MOTORB_ENCB);
