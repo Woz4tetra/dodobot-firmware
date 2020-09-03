@@ -46,8 +46,8 @@ namespace dodobot_chassis
 
     uint32_t prev_enc_time = 0;
 
-    double speed_smooth_kA = 1.0;
-    double speed_smooth_kB = 1.0;
+    double speed_smooth_kA = 0.9;
+    double speed_smooth_kB = 0.9;
 
     // Bumpers
     void setup_bumpers()
