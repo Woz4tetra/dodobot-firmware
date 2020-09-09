@@ -20,33 +20,66 @@ namespace dodobot_linear
     int32_t stepper_pos = 0;
     int32_t stepper_vel = 0;
 
+    TicStepMode step_mode = TicStepMode::Microstep8;
+    // TicStepMode step_mode = TicStepMode::Microstep4;
+    // TicStepMode step_mode = TicStepMode::Microstep1;
+
     const int ERROR_PIN = 15;
 
     // Homing switch
     const int HOMING_PIN = 39;
 
     // Positioning constants
-    // const double STEPPER_GEARBOX_RATIO = 26 + 103 / 121;
-    // const int ENCODER_TICKS_PER_R_NO_GEARBOX = 40;
-    // const int STEPPER_TICKS_PER_R_NO_GEARBOX = 200;
-    //
-    // const double ENCODER_TICKS_PER_R = ENCODER_TICKS_PER_R_NO_GEARBOX * STEPPER_GEARBOX_RATIO;
-    // const double STEPPER_TICKS_PER_R = STEPPER_TICKS_PER_R_NO_GEARBOX * STEPPER_GEARBOX_RATIO;
-    // const double ENC_TO_STEP_TICKS = (double)STEPPER_TICKS_PER_R_NO_GEARBOX / ENCODER_TICKS_PER_R_NO_GEARBOX;
-    const double ENC_TO_STEP_TICKS = 12.5;
+    const double STEPPER_GEARBOX_RATIO = 26.0 + 103.0 / 121.0;
+    const double ENCODER_TICKS_PER_R_NO_GEARBOX = 160.0;
+    const double STEPPER_TICKS_PER_R_NO_GEARBOX = 200.0;
+    int microsteps = 1;
 
-    const int MAX_POSITION = 85000;
-    const int MAX_SPEED = 300000000;
-    // const uint32_t MAX_SPEED = 420000000;
+    const double ENCODER_TICKS_PER_R = ENCODER_TICKS_PER_R_NO_GEARBOX * STEPPER_GEARBOX_RATIO;
+    const double ENCODER_R_PER_TICK = 1.0 / ENCODER_TICKS_PER_R;
+    double STEPPER_TICKS_PER_R = 1.0;  // depends on microsteps
+    double STEPPER_R_PER_TICK = 1.0;  // depends on microsteps
+    double ENC_TO_STEP_TICKS = 1.0;  // depends on microsteps
 
-    const int POSITION_BUFFER = 500;
-    const int ENCODER_POSITION_ERROR = 7000;
+    // const double BELT_PULLEY_RADIUS_MM = 13.58874;
+    const double BELT_PULLEY_RADIUS_MM = 12.1;
+    double STEP_TICKS_TO_LINEAR_MM = 1.0;  // depends on microsteps
+
+    // CAD full travel is 178.60mm
+    const int MAX_POSITION_FULL_STEP = 10625;
+    // const int MAX_POSITION = 85000;
+
+    const int MAX_SPEED_FULL_STEP = 31250000;
+    // const int MAX_SPEED_FULL_STEP = 250000000;
+    // const int MAX_SPEED_FULL_STEP = 300000000;
+    // const int MAX_SPEED_FULL_STEP = 420000000;
+
+    const int HOMING_SPEED_FULL_STEP = 3125000;
+    // const int HOMING_SPEED_FULL_STEP = 50000000;
+
+    const int STEPPER_ACCEL_FULL_STEP = 1250000;
+    const int STEPPER_DECEL_FULL_STEP = 1250000;
+
+    const int POSITION_BUFFER_FULL_STEP = 60;
+    // const int ENCODER_POSITION_ERROR_FULL_STEP = 500;
+    const int ENCODER_POSITION_ERROR_FULL_STEP = 200;
+    const int START_POS_FULL_STEP = 1250;
+    const int HOMING_POS_OFFSET_FULL_STEP = 125;
+
+    int MAX_POSITION = 1;
+    int MAX_SPEED = 1;
+    int HOMING_SPEED = 1;
+    int POSITION_BUFFER = 1;
+    int ENCODER_POSITION_ERROR = 1;
+    int STEPPER_ACCEL = 1;
+    int STEPPER_DECEL = 1;
 
     // Encoder
     const int STEPPER_ENCA = 31;
     const int STEPPER_ENCB = 32;
     Encoder stepper_enc(STEPPER_ENCB, STEPPER_ENCA);
-    long encoder_pos = 0;
+    long encoder_pos = 0;  // encoder ticks converted to stepper ticks
+    long raw_encoder_pos = 0;  // encoders ticks as counted
 
     // general flags and variables
     bool is_homed = false;
@@ -77,10 +110,16 @@ namespace dodobot_linear
         stepper_enc.write(0);
     }
 
+    long read_encoder()
+    {
+        raw_encoder_pos = stepper_enc.read();
+        return raw_encoder_pos;
+    }
+
     long enc_as_step_ticks()
     {
-        encoder_pos = stepper_enc.read();
-        return (long)((double)encoder_pos * ENC_TO_STEP_TICKS);
+        encoder_pos = (long)((double)read_encoder() * ENC_TO_STEP_TICKS);
+        return encoder_pos;
     }
 
     bool has_position_error(int stepper_pos) {
@@ -88,7 +127,7 @@ namespace dodobot_linear
     }
 
     bool has_been_pushed() {
-        return abs(stepper_enc.read() - encoder_pos) > ENCODER_POSITION_ERROR;
+        return abs(read_encoder() - encoder_pos) > ENCODER_POSITION_ERROR;
     }
 
     void reset_to_enc_position() {
@@ -113,7 +152,6 @@ namespace dodobot_linear
             // Give the Tic some time to start up.
             delay(20);
             tic.exitSafeStart();
-            tic.setMaxSpeed(MAX_SPEED);
             reset_encoder();
         }
         else {
@@ -142,6 +180,7 @@ namespace dodobot_linear
         {
             tic.resetCommandTimeout();
         } while (tic.getCurrentPosition() != targetPosition);
+        stepper_pos = targetPosition;
     }
 
     void print_stepper_error(uint16_t errors)
@@ -183,7 +222,6 @@ namespace dodobot_linear
 
             if (errors == 0 || errors & (1 << (uint8_t)TicError::SafeStartViolation)) {
                 tic.exitSafeStart();
-                tic.setMaxSpeed(MAX_SPEED);
             }
             else {
                 dodobot_serial::println_error("Stepper is errored: %d", errors);
@@ -192,6 +230,45 @@ namespace dodobot_linear
             }
         }
         return false;
+    }
+
+    void update_microstep_config()
+    {
+        switch (step_mode) {
+        // switch (tic.getStepMode()) {
+            case TicStepMode::Microstep1: microsteps = 1; break;
+            case TicStepMode::Microstep2_100p:
+            case TicStepMode::Microstep2: microsteps = 2; break;
+            case TicStepMode::Microstep4: microsteps = 4; break;
+            case TicStepMode::Microstep8: microsteps = 8; break;
+            case TicStepMode::Microstep16: microsteps = 16; break;
+            case TicStepMode::Microstep32: microsteps = 32; break;
+            case TicStepMode::Microstep64: microsteps = 64; break;
+            case TicStepMode::Microstep128: microsteps = 128; break;
+            case TicStepMode::Microstep256: microsteps = 256; break;
+        }
+    }
+
+    void update_conversions()
+    {
+        update_microstep_config();
+        STEPPER_TICKS_PER_R = STEPPER_TICKS_PER_R_NO_GEARBOX * (double)microsteps * STEPPER_GEARBOX_RATIO;
+        STEPPER_R_PER_TICK = 1.0 / STEPPER_TICKS_PER_R;
+        ENC_TO_STEP_TICKS = STEPPER_TICKS_PER_R_NO_GEARBOX * (double)microsteps / ENCODER_TICKS_PER_R_NO_GEARBOX;
+        STEP_TICKS_TO_LINEAR_MM = STEPPER_R_PER_TICK * BELT_PULLEY_RADIUS_MM * 2 * PI;
+
+        MAX_SPEED = MAX_SPEED_FULL_STEP * microsteps;
+        MAX_POSITION = MAX_POSITION_FULL_STEP * microsteps;
+        HOMING_SPEED = HOMING_SPEED_FULL_STEP * microsteps;
+        STEPPER_ACCEL = STEPPER_ACCEL_FULL_STEP * microsteps;
+        STEPPER_DECEL = STEPPER_DECEL_FULL_STEP * microsteps;
+
+        POSITION_BUFFER = POSITION_BUFFER_FULL_STEP * microsteps;
+        ENCODER_POSITION_ERROR = ENCODER_POSITION_ERROR_FULL_STEP * microsteps;
+    }
+
+    double to_linear_pos(int stepper_ticks) {
+        return stepper_ticks * STEP_TICKS_TO_LINEAR_MM;
     }
 
     void home_stepper()
@@ -204,6 +281,13 @@ namespace dodobot_linear
             dodobot_serial::println_error("Can't home stepper. Stepper is errored.");
         }
         dodobot_serial::println_info("Running home sequence.");
+
+        tic.setStepMode(step_mode);
+        update_conversions();
+        dodobot_serial::println_info("Step mode set to %d", microsteps);
+
+        tic.setMaxSpeed(MAX_SPEED);
+
         // Drive down until the limit switch is found
         tic.setTargetVelocity(-MAX_SPEED);
         while (!is_home_pin_active()) {
@@ -220,19 +304,24 @@ namespace dodobot_linear
         delay(25);
 
         // Move down more slowly to get a more accurate reading
-        tic.setTargetVelocity(-50000000);
+        tic.setTargetVelocity(-HOMING_SPEED);
         while (!is_home_pin_active()) {
             tic.resetCommandTimeout();
         }
-
+        tic.haltAndSetPosition(HOMING_POS_OFFSET_FULL_STEP * microsteps);
+        delay(50);
+        waitForPosition(0);
         tic.haltAndSetPosition(0);
         delay(50);
         reset_encoder();
         delay(50);
-        waitForPosition(10000);
+        waitForPosition(START_POS_FULL_STEP * microsteps);
+        enc_as_step_ticks();  // initialize encoder variables
 
         tic.setMaxSpeed(MAX_SPEED);
         is_homed = true;
+        target_position = 0;
+        target_velocity = 0;
         dodobot_serial::println_info("Homing complete.");
     }
 
@@ -311,8 +400,8 @@ namespace dodobot_linear
             check_errors();
         }
 
-        // If the stepper isn't moving and the linear slide hasn't been pushed, do nothing
-        if (!is_moving && !has_been_pushed()) {
+        // If linear slide hasn't been pushed and the stepper isn't moving, do nothing
+        if (!has_been_pushed() && !is_moving) {
             return;
         }
 
@@ -331,6 +420,13 @@ namespace dodobot_linear
             case TicPlanningMode::TargetPosition: if (is_position_invalid(stepper_pos))  { stop(); } break;
             case TicPlanningMode::TargetVelocity: if (is_velocity_invalid(stepper_pos))  { stop(); } break;
         }
+        // if (is_moving) {
+        //     // dodobot_serial::println_info("Step mode: %d", (uint8_t)tic.getStepMode());
+        //     // dodobot_serial::println_info("Accel: %d", (int)tic.getMaxAccel());
+        //     // dodobot_serial::println_info("Decel: %d", (int)tic.getMaxDecel());
+        //     // dodobot_serial::println_info("Current lim: %d", (int)tic.getCurrentLimit());
+        //     // dodobot_serial::println_info("%f, %f, %f, %f", STEPPER_TICKS_PER_R, STEPPER_R_PER_TICK, ENC_TO_STEP_TICKS, STEP_TICKS_TO_LINEAR_MM);
+        // }
 
         // If the stepper position has deviated from the encoder position,
         // stop the motor and reset position to the encoder's position

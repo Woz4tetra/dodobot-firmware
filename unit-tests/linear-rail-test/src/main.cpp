@@ -19,6 +19,8 @@ TicSerial tic(TIC_SERIAL);
 
 const int MAX_POSITION = 85000;
 
+TicStepMode step_mode = TicStepMode::Microstep8;
+
 // Encoder
 #define STEPPER_ENCA 31
 #define STEPPER_ENCB 32
@@ -66,6 +68,7 @@ void setup_stepper()
     delay(20);
     tic.exitSafeStart();
     tic.setMaxSpeed(max_speed);
+    tic.setStepMode(step_mode);
 
     reset_encoder();
 

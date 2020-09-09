@@ -258,8 +258,12 @@ namespace dodobot_menu
     void draw_linear_menu()
     {
         int y_offset = TOP_BAR_H + 5;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("step: " + String(dodobot_linear::enc_as_step_ticks()) + "       "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("enc: " + String(dodobot_linear::stepper_pos) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("step: " + String(dodobot_linear::stepper_pos) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("enc: " + String(dodobot_linear::raw_encoder_pos) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("enc as step: " + String(dodobot_linear::encoder_pos) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("diff: " + String(dodobot_linear::stepper_pos - dodobot_linear::encoder_pos) + ", " + String(dodobot_linear::ENCODER_POSITION_ERROR) + "       "); y_offset += ROW_SIZE;
+
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("linear pos mm: " + String(dodobot_linear::to_linear_pos(dodobot_linear::stepper_pos)) + "       "); y_offset += ROW_SIZE;
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("vel: " + String(dodobot_linear::stepper_vel) + "            "); y_offset += ROW_SIZE;
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("error: " + String(dodobot_linear::is_errored()) + "       "); y_offset += ROW_SIZE;
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("moving: " + String(dodobot_linear::is_moving) + "       "); y_offset += ROW_SIZE;
@@ -273,6 +277,7 @@ namespace dodobot_menu
         y_offset += ROW_SIZE;
 
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("homed: " + String(dodobot_linear::is_homed) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("microstep: " + String(dodobot_linear::microsteps) + "       "); y_offset += ROW_SIZE;
     }
 
     //
@@ -623,7 +628,7 @@ namespace dodobot_menu
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "v");
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX += 1; break;
-            case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position - 5000); break;
+            case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position - 625 * dodobot_linear::microsteps); break;
             case DRIVE_MENU: drive_robot_forward(-3000.0); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX += 1; break;
             default: break;
@@ -634,7 +639,7 @@ namespace dodobot_menu
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "^");
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX -= 1; break;
-            case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position + 5000); break;
+            case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position + 625 * dodobot_linear::microsteps); break;
             case DRIVE_MENU: drive_robot_forward(3000.0); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX -= 1; break;
             default: break;
