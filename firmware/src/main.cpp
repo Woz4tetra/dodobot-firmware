@@ -135,14 +135,11 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // set pid ks
     else if (category.equals("ks")) {
-        CHECK_SEGMENT(serial_obj); unsigned int index = serial_obj->get_segment().toInt();
-        CHECK_SEGMENT(serial_obj); float k_value = serial_obj->get_segment().toFloat();
-        if (0 <= index && index < dodobot_speed_pid::NUM_PID_KS) {
+        float k_value = 0;
+        for (size_t index = 0; index < dodobot_speed_pid::NUM_PID_KS; index++) {
+            CHECK_SEGMENT(serial_obj); k_value = serial_obj->get_segment().toFloat();
             dodobot_speed_pid::pid_Ks[index] = k_value;
-            dodobot_speed_pid::set_Ks();  // sets pid constants based on pid_Ks array
-        }
-        else {
-            dodobot_serial::println_error("Invalid K value index supplied: %d", index);
+            dodobot_serial::println_info("Set k %d: %f", index, k_value);
         }
     }
 

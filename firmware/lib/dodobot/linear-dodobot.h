@@ -391,7 +391,7 @@ namespace dodobot_linear
 
         // If reporting is enabled, print various data
         if (dodobot::robot_state.is_reporting_enabled) {
-            dodobot_serial::data->write("linear", "uddddd", CURRENT_TIME, stepper_pos, encoder_pos, is_errored(), is_homed, is_active);
+            dodobot_serial::data->write("linear", "udddd", CURRENT_TIME, stepper_pos, is_errored(), is_homed, is_active);
         }
 
         bool error_state = is_errored();
