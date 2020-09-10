@@ -141,6 +141,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
             dodobot_speed_pid::pid_Ks[index] = k_value;
             dodobot_serial::println_info("Set k %d: %f", index, k_value);
         }
+        dodobot_speed_pid::set_Ks();
     }
 
     // set chassis speed
