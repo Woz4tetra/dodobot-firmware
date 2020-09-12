@@ -11,8 +11,22 @@
 
 #define RESET_PIN A22
 
+
 namespace dodobot_linear
 {
+    enum class LinearEvent
+    {
+        ACTIVE_TRUE = 1,
+        ACTIVE_FALSE = 2,
+        HOMING_STARTED = 3,
+        HOMING_FINISHED = 4,
+        MOVE_STARTED = 5,
+        MOVE_FINISHED = 6,
+        POSITION_ERROR = 7,
+        NOT_HOMED = 8,
+        NOT_ACTIVE = 9
+    };
+
     const int baudrate = 115385;
     const int serial_timeout = 50;
     // TIC Stepper controller
@@ -104,6 +118,10 @@ namespace dodobot_linear
         return digitalRead(ERROR_PIN) == HIGH;
     }
 
+    void send_event(LinearEvent event) {
+        dodobot_serial::data->write("le", "ud", CURRENT_TIME, (int)(event));
+    }
+
     void reset_encoder()
     {
         encoder_pos = 0;
@@ -153,10 +171,12 @@ namespace dodobot_linear
             delay(20);
             tic.exitSafeStart();
             reset_encoder();
+            send_event(LinearEvent::ACTIVE_TRUE);
         }
         else {
             TIC_SERIAL.end();
             is_homed = false;
+            send_event(LinearEvent::ACTIVE_FALSE);
         }
     }
 
@@ -217,7 +237,7 @@ namespace dodobot_linear
 
     bool check_errors()
     {
-        if (is_errored()) {
+        if (dodobot::robot_state.motors_active && is_errored()) {
             uint16_t errors = tic.getErrorStatus();
 
             if (errors == 0 || errors & (1 << (uint8_t)TicError::SafeStartViolation)) {
@@ -281,6 +301,7 @@ namespace dodobot_linear
             dodobot_serial::println_error("Can't home stepper. Stepper is errored.");
         }
         dodobot_serial::println_info("Running home sequence.");
+        send_event(LinearEvent::HOMING_STARTED);
 
         tic.setStepMode(step_mode);
         update_conversions();
@@ -323,10 +344,16 @@ namespace dodobot_linear
         target_position = 0;
         target_velocity = 0;
         dodobot_serial::println_info("Homing complete.");
+        send_event(LinearEvent::HOMING_FINISHED);
     }
 
     void set_position(int position) {
-        if (!is_homed || !is_active) {
+        if (!is_active) {
+            send_event(LinearEvent::NOT_ACTIVE);
+            return;
+        }
+        if (!is_homed) {
+            send_event(LinearEvent::NOT_HOMED);
             return;
         }
         if (position > MAX_POSITION) {
@@ -338,10 +365,16 @@ namespace dodobot_linear
         target_position = position;
         tic.setTargetPosition(target_position);
         is_moving = true;
+        send_event(LinearEvent::MOVE_STARTED);
     }
 
     void set_velocity(int velocity) {
-        if (!is_homed || !is_active) {
+        if (!is_active) {
+            send_event(LinearEvent::NOT_ACTIVE);
+            return;
+        }
+        if (!is_homed) {
+            send_event(LinearEvent::NOT_HOMED);
             return;
         }
         target_velocity = velocity;
@@ -371,18 +404,19 @@ namespace dodobot_linear
     enum TicPlanningMode get_planning_mode() {
         if (CURRENT_TIME - planning_mode_timer > PLANNING_MODE_DELAY_MS) {
             planning_mode_timer = CURRENT_TIME;
-            planning_mode = tic.getPlanningMode();
-
+            TicPlanningMode new_planning_mode = tic.getPlanningMode();
+            if (new_planning_mode != planning_mode) {
+                if (planning_mode == TicPlanningMode::TargetPosition &&
+                        new_planning_mode == TicPlanningMode::Off) {
+                    send_event(LinearEvent::MOVE_FINISHED);
+                }
+                planning_mode = new_planning_mode;
+            }
         }
         return planning_mode;
     }
 
     void update() {
-        // If the stepper is not homed and isn't active, do nothing
-        if (!is_homed || !is_active) {
-            return;
-        }
-
         // If the update timer hasn't exceeded the threshold, do nothing
         if (CURRENT_TIME - update_timer < UPDATE_DELAY_MS) {
             return;
@@ -394,6 +428,11 @@ namespace dodobot_linear
             dodobot_serial::data->write("linear", "udddd", CURRENT_TIME, stepper_pos, is_errored(), is_homed, is_active);
         }
 
+        // If the stepper is not homed and isn't active, do nothing
+        if (!is_homed || !is_active) {
+            return;
+        }
+
         bool error_state = is_errored();
         if (error_state != is_errored_state && error_state) {
             tic.haltAndHold();
@@ -401,11 +440,11 @@ namespace dodobot_linear
         }
 
         // If linear slide hasn't been pushed and the stepper isn't moving, do nothing
-        if (!has_been_pushed() && !is_moving) {
-            return;
-        }
+        // if (!has_been_pushed() && !is_moving) {
+        //     return;
+        // }
 
-        // Check if stepper is moving to position, moving with velocity, or no moving
+        // Check if stepper is moving to position, moving with velocity, or not moving
         // Check if stepper position has exceeded the boundaries
         stepper_pos = tic.getCurrentPosition();
         int32_t vel = tic.getCurrentVelocity();
@@ -417,7 +456,7 @@ namespace dodobot_linear
         }
         switch (get_planning_mode()) {
             case TicPlanningMode::Off: is_moving = false; break;
-            case TicPlanningMode::TargetPosition: if (is_position_invalid(stepper_pos))  { stop(); } break;
+            // case TicPlanningMode::TargetPosition: if (is_position_invalid(stepper_pos))  { stop(); } break;
             case TicPlanningMode::TargetVelocity: if (is_velocity_invalid(stepper_pos))  { stop(); } break;
         }
         // if (is_moving) {
@@ -433,6 +472,7 @@ namespace dodobot_linear
         if (has_position_error(stepper_pos)) {
             reset_to_enc_position();
             dodobot_serial::println_error("Position error!");
+            send_event(LinearEvent::POSITION_ERROR);
         }
 
         tic.resetCommandTimeout();
