@@ -23,6 +23,13 @@ void set_active(bool state)
     dodobot_linear::set_active(state);
 }
 
+void homing_routine()
+{
+    dodobot_chassis::stop_motors();
+    dodobot_speed_pid::reset_pid();
+    dodobot_linear::home_stepper();
+}
+
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)
 {
     // dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
@@ -127,7 +134,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
                 break;
             case 2: dodobot_linear::stop(); break;
             case 3: dodobot_linear::reset(); break;
-            case 4: dodobot_linear::home_stepper(); break;
+            case 4: homing_routine(); break;
             default:
                 break;
         }

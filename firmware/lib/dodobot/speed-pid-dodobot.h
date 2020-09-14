@@ -59,6 +59,13 @@ namespace dodobot_speed_pid
             target = _target;
             prev_setpoint_time = CURRENT_TIME;
         }
+
+        void reset() {
+            prev_error = 0.0;
+            error_sum = 0.0;
+            set_target(0.0);
+        }
+
         int limit(double value) {
             if (value > 255.0) {
                 return 255;
@@ -68,6 +75,7 @@ namespace dodobot_speed_pid
             }
             return (int)(value);
         }
+
         int compute(double measurement)
         {
             // if (target != 0.0) {
@@ -114,6 +122,11 @@ namespace dodobot_speed_pid
         dodobot_chassis::speed_smooth_kB = pid_Ks[7];  // defined in chassis-dodobot.h
     }
 
+    void reset_pid() {
+        motorA_pid.reset();
+        motorB_pid.reset();
+    }
+
     void setup_pid()
     {
         for (size_t index = 0; index < NUM_PID_KS; index++){
@@ -125,6 +138,7 @@ namespace dodobot_speed_pid
         pid_Ks[3] = motorB_pid.Kp;
         pid_Ks[4] = motorB_pid.Ki;
         pid_Ks[5] = motorB_pid.Kd;
+        reset_pid();
     }
 
     void update_setpointA(double new_setpoint) {
@@ -156,6 +170,7 @@ namespace dodobot_speed_pid
 
     void set_speed_pid(bool enabled) {
         dodobot::robot_state.is_speed_pid_enabled = enabled;
+        reset_pid();
     }
 };
 
