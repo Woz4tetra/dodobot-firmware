@@ -24,11 +24,12 @@ namespace dodobot_linear
         MOVE_FINISHED = 6,
         POSITION_ERROR = 7,
         NOT_HOMED = 8,
-        NOT_ACTIVE = 9
+        NOT_ACTIVE = 9,
+        HOMING_FAILED = 10,
     };
 
     const int baudrate = 115385;
-    const int serial_timeout = 50;
+    const int serial_timeout = 1000;
     // TIC Stepper controller
     TicSerial tic(TIC_SERIAL);
     int32_t stepper_pos = 0;
@@ -63,16 +64,16 @@ namespace dodobot_linear
     const int MAX_POSITION_FULL_STEP = 10625;
     // const int MAX_POSITION = 85000;
 
-    const int MAX_SPEED_FULL_STEP = 31250000;
-    // const int MAX_SPEED_FULL_STEP = 250000000;
-    // const int MAX_SPEED_FULL_STEP = 300000000;
-    // const int MAX_SPEED_FULL_STEP = 420000000;
+    const uint32_t MAX_SPEED_FULL_STEP = 31250000;
+    // const uint32_t MAX_SPEED_FULL_STEP = 250000000;
+    // const uint32_t MAX_SPEED_FULL_STEP = 300000000;
+    // const uint32_t MAX_SPEED_FULL_STEP = 420000000;
 
-    const int HOMING_SPEED_FULL_STEP = 3125000;
-    // const int HOMING_SPEED_FULL_STEP = 50000000;
+    const uint32_t HOMING_SPEED_FULL_STEP = 3125000;
+    // const uint32_t HOMING_SPEED_FULL_STEP = 50000000;
 
-    const int STEPPER_ACCEL_FULL_STEP = 1250000;
-    const int STEPPER_DECEL_FULL_STEP = 1250000;
+    const uint32_t STEPPER_ACCEL_FULL_STEP = 1250000;
+    const uint32_t STEPPER_DECEL_FULL_STEP = 1250000;
 
     const int POSITION_BUFFER_FULL_STEP = 60;
     // const int ENCODER_POSITION_ERROR_FULL_STEP = 500;
@@ -81,12 +82,12 @@ namespace dodobot_linear
     const int HOMING_POS_OFFSET_FULL_STEP = 125;
 
     int MAX_POSITION = 1;
-    int MAX_SPEED = 1;
-    int HOMING_SPEED = 1;
+    uint32_t MAX_SPEED = 1;
+    uint32_t HOMING_SPEED = 1;
     int POSITION_BUFFER = 1;
     int ENCODER_POSITION_ERROR = 1;
-    int STEPPER_ACCEL = 1;
-    int STEPPER_DECEL = 1;
+    uint32_t STEPPER_ACCEL = 1;
+    uint32_t STEPPER_DECEL = 1;
 
     // Encoder
     const int STEPPER_ENCA = 31;
@@ -119,7 +120,7 @@ namespace dodobot_linear
     }
 
     void send_event(LinearEvent event) {
-        dodobot_serial::data->write("le", "ud", CURRENT_TIME, (int)(event));
+        DODOBOT_SERIAL_WRITE_BOTH("le", "ud", CURRENT_TIME, (int)(event));
     }
 
     void reset_encoder()
@@ -299,6 +300,7 @@ namespace dodobot_linear
         }
         if (check_errors()) {
             dodobot_serial::println_error("Can't home stepper. Stepper is errored.");
+            return;
         }
         dodobot_serial::println_info("Running home sequence.");
         send_event(LinearEvent::HOMING_STARTED);
@@ -308,26 +310,72 @@ namespace dodobot_linear
         dodobot_serial::println_info("Step mode set to %d", microsteps);
 
         tic.setMaxSpeed(MAX_SPEED);
+        tic.setMaxAccel(STEPPER_ACCEL);
+        tic.setMaxDecel(STEPPER_DECEL);
+        dodobot_serial::println_info("Max speed: %d, accel: %d, decel: %d", MAX_SPEED, STEPPER_ACCEL, STEPPER_DECEL);
+        if (check_errors()) {
+            dodobot_serial::println_error("Can't home stepper. Stepper is errored after setting motion params.");
+            return;
+        }
+
+        uint32_t speed;
+        for (size_t count = 0; count < 10; count++) {
+            delay(20);
+            speed = tic.getMaxSpeed();
+            if (speed == MAX_SPEED) {
+                break;
+            }
+            else {
+                delay(100);
+            }
+        }
+        if (speed != MAX_SPEED) {
+            dodobot_serial::println_error("Homing routine failed to send desired speed. %d != %d", speed, MAX_SPEED);
+            send_event(LinearEvent::HOMING_FAILED);
+            return;
+        }
+        if (check_errors()) {
+            dodobot_serial::println_error("Can't home stepper. Stepper is errored after checking motion params.");
+            return;
+        }
 
         // Drive down until the limit switch is found
         tic.setTargetVelocity(-MAX_SPEED);
+        uint32_t timer = CURRENT_TIME;
         while (!is_home_pin_active()) {
             tic.resetCommandTimeout();
+            if (CURRENT_TIME - timer > 10000) {   // 10 second timeout
+                dodobot_serial::println_error("Homing routine timed out while waiting for first pass limit switch");
+                send_event(LinearEvent::HOMING_FAILED);
+                return;
+            }
         }
         tic.haltAndHold();
         delay(50);
 
         // Move off the homing switch
         tic.setTargetVelocity(MAX_SPEED);
+        timer = CURRENT_TIME;
         while (is_home_pin_active()) {
             tic.resetCommandTimeout();
+            if (CURRENT_TIME - timer > 10000) {   // 10 second timeout
+                dodobot_serial::println_error("Homing routine timed out while moving off limit switch");
+                send_event(LinearEvent::HOMING_FAILED);
+                return;
+            }
         }
         delay(25);
 
         // Move down more slowly to get a more accurate reading
         tic.setTargetVelocity(-HOMING_SPEED);
+        timer = CURRENT_TIME;
         while (!is_home_pin_active()) {
             tic.resetCommandTimeout();
+            if (CURRENT_TIME - timer > 10000) {   // 10 second timeout
+                dodobot_serial::println_error("Homing routine timed out while waiting for second pass limit switch");
+                send_event(LinearEvent::HOMING_FAILED);
+                return;
+            }
         }
         tic.haltAndSetPosition(HOMING_POS_OFFSET_FULL_STEP * microsteps);
         delay(50);
@@ -457,6 +505,7 @@ namespace dodobot_linear
         switch (get_planning_mode()) {
             case TicPlanningMode::Off: is_moving = false; break;
             // case TicPlanningMode::TargetPosition: if (is_position_invalid(stepper_pos))  { stop(); } break;
+            case TicPlanningMode::TargetPosition: break;
             case TicPlanningMode::TargetVelocity: if (is_velocity_invalid(stepper_pos))  { stop(); } break;
         }
         // if (is_moving) {

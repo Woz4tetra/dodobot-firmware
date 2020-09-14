@@ -18,9 +18,9 @@ void set_active(bool state)
     dodobot::set_motors_active(state);
     dodobot_gripper::set_active(state);
     dodobot_tilter::set_active(state);
-    dodobot_linear::set_active(state);
     dodobot_chassis::set_active(state);
     dodobot_speed_pid::set_speed_pid(state);
+    dodobot_linear::set_active(state);
 }
 
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)
