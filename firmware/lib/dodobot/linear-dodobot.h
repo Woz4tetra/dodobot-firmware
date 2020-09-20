@@ -414,6 +414,9 @@ namespace dodobot_linear
         tic.setTargetPosition(target_position);
         is_moving = true;
         send_event(LinearEvent::MOVE_STARTED);
+        if (target_position == tic.getCurrentPosition()) {
+            send_event(LinearEvent::MOVE_FINISHED);
+        }
     }
 
     void set_velocity(int velocity) {

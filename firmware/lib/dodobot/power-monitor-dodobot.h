@@ -10,7 +10,7 @@
 
 #define INA_SAMPLERATE_DELAY_MS 500
 // #define INA_SAMPLERATE_DELAY_MS 10
-#define INA_VOLTAGE_THRESHOLD 10.0
+#define INA_VOLTAGE_THRESHOLD 8.0
 
 /*
  * Adafruit High-side current and voltage meter
