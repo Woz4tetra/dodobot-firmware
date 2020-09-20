@@ -140,6 +140,19 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         }
     }
 
+    // set linear configuration settings
+    else if (category.equals("lincfg")) {
+        CHECK_SEGMENT(serial_obj); int config_type = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj); int value = serial_obj->get_segment().toInt();
+
+        switch (config_type) {
+            case 0:  dodobot_linear::set_max_speed(value); break;
+            case 1:  dodobot_linear::set_accel(value); break;
+            default:
+                break;
+        }
+    }
+
     // set pid ks
     else if (category.equals("ks")) {
         float k_value = 0;

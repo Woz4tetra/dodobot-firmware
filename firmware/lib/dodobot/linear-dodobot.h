@@ -64,16 +64,16 @@ namespace dodobot_linear
     const int MAX_POSITION_FULL_STEP = 10625;
     // const int MAX_POSITION = 85000;
 
-    const uint32_t MAX_SPEED_FULL_STEP = 31250000;
-    // const uint32_t MAX_SPEED_FULL_STEP = 250000000;
-    // const uint32_t MAX_SPEED_FULL_STEP = 300000000;
-    // const uint32_t MAX_SPEED_FULL_STEP = 420000000;
+    uint32_t MAX_SPEED_FULL_STEP = 31250000;
+    // uint32_t MAX_SPEED_FULL_STEP = 250000000;
+    // uint32_t MAX_SPEED_FULL_STEP = 300000000;
+    // uint32_t MAX_SPEED_FULL_STEP = 420000000;
 
     const uint32_t HOMING_SPEED_FULL_STEP = 3125000;
     // const uint32_t HOMING_SPEED_FULL_STEP = 50000000;
 
-    const uint32_t STEPPER_ACCEL_FULL_STEP = 1250000;
-    const uint32_t STEPPER_DECEL_FULL_STEP = 1250000;
+    uint32_t STEPPER_ACCEL_FULL_STEP = 1250000;
+    uint32_t STEPPER_DECEL_FULL_STEP = 1250000;
 
     const int POSITION_BUFFER_FULL_STEP = 60;
     // const int ENCODER_POSITION_ERROR_FULL_STEP = 500;
@@ -286,6 +286,20 @@ namespace dodobot_linear
 
         POSITION_BUFFER = POSITION_BUFFER_FULL_STEP * microsteps;
         ENCODER_POSITION_ERROR = ENCODER_POSITION_ERROR_FULL_STEP * microsteps;
+    }
+
+    void set_max_speed(uint32_t speed) {
+        MAX_SPEED_FULL_STEP = speed / microsteps;  // speed is set with microstepping accounted for
+        update_conversions();
+        tic.setMaxSpeed(MAX_SPEED);
+    }
+
+    void set_accel(uint32_t accel) {
+        STEPPER_ACCEL_FULL_STEP = accel / microsteps;  // acceleration is set with microstepping accounted for
+        STEPPER_DECEL_FULL_STEP = accel / microsteps;  // acceleration is set with microstepping accounted for
+        update_conversions();
+        tic.setMaxAccel(STEPPER_ACCEL);
+        tic.setMaxDecel(STEPPER_DECEL);
     }
 
     double to_linear_pos(int stepper_ticks) {

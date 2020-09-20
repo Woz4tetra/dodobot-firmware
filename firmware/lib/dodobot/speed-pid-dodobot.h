@@ -38,6 +38,9 @@ namespace dodobot_speed_pid
         double error_sum, prev_error;
         double feedforward;
         uint32_t prev_setpoint_time;
+        uint32_t current_time, prev_update_time;
+        double dt;
+        double out;
 
     public:
         double Kp, Ki, Kd;
@@ -49,6 +52,10 @@ namespace dodobot_speed_pid
             error_sum(0.0), prev_error(0.0),
             feedforward(0.0),
             prev_setpoint_time(0),
+            current_time(0),
+            prev_update_time(0),
+            dt(0.0),
+            out(0.0),
             Kp(0.01), Ki(0.0), Kd(0.0)
         {
 
@@ -58,6 +65,7 @@ namespace dodobot_speed_pid
             feedforward = K_ff * _target;
             target = _target;
             prev_setpoint_time = CURRENT_TIME;
+            prev_update_time = micros();
         }
 
         void reset() {
@@ -85,20 +93,32 @@ namespace dodobot_speed_pid
             //     }
             // }
 
-            double error = target - measurement;
-            if (abs(target) < deadzone) {
-                return 0.0;
+            if (micros() - prev_update_time == 0) {
+                return out;
             }
-            double out = 0.0;
+            else if (micros() - prev_update_time < 0) {  // edge case for timer looping
+                prev_update_time = micros();
+                return out;
+            }
+
+            double error = target - measurement;
+            current_time = micros();
+            dt = (current_time - prev_update_time) * 1E-6;
+            prev_update_time = current_time;
+
+            out = 0.0
+            if (abs(target) < deadzone) {
+                return 0;
+            }
             if (Kp != 0.0) {
                 out += Kp * error;
             }
             if (Kd != 0.0) {
-                out += Kd * (error - prev_error);
+                out += Kd * (error - prev_error) / dt;
                 prev_error = error;
             }
             if (Ki != 0.0) {
-                out += Ki * error_sum;
+                out += Ki * error_sum * dt;
                 error_sum += error;
             }
             out += feedforward;
