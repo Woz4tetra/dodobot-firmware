@@ -106,7 +106,7 @@ namespace dodobot_speed_pid
             dt = (current_time - prev_update_time) * 1E-6;
             prev_update_time = current_time;
 
-            out = 0.0
+            out = 0.0;
             if (abs(target) < deadzone) {
                 return 0;
             }
