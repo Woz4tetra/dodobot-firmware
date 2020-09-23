@@ -10,8 +10,10 @@ char SERIAL_MSG_BUFFER[SERIAL_MSG_BUFFER_SIZE];
 #define PACKET_START_0 '\x12'
 #define PACKET_START_1 '\x34'
 #define PACKET_STOP '\n'
+#define PACKET_STOP_TIMEOUT 500
 
 #define CHECK_SEGMENT(__SERIAL_OBJ__)  if (!__SERIAL_OBJ__->next_segment()) {  println_error("Not enough segments supplied for #%d: %s", __SERIAL_OBJ__->get_segment_num(), packet.c_str());  return;  }
+#define CHECK_SEGMENT_BREAK(__SERIAL_OBJ__)  if (!__SERIAL_OBJ__->next_segment()) {  println_error("Not enough segments supplied for #%d: %s", __SERIAL_OBJ__->get_segment_num(), packet.c_str());  break;  }
 #define DODOBOT_SERIAL_WRITE_BOTH(...)  dodobot_serial::data->write(__VA_ARGS__);  dodobot_serial::info->write(__VA_ARGS__);
 
 namespace dodobot_serial
@@ -72,7 +74,12 @@ namespace dodobot_serial
                     }
                 }
                 if (start_found) {
-                    while (true) {
+                    start_wait_time = millis();
+                    while (true)
+                    {
+                        if (millis() - start_wait_time > PACKET_STOP_TIMEOUT) {
+                            break;
+                        }
                         if (device()->available()) {
                             c = device()->read();
                             if (c == PACKET_STOP) {
@@ -147,6 +154,7 @@ namespace dodobot_serial
         bool prev_ready_state;
         char *recv_char_buffer;
         size_t recv_char_index;
+        uint32_t start_wait_time;
 
         void init_variables() {
             write_packet = "";
@@ -163,6 +171,8 @@ namespace dodobot_serial
 
             recv_char_buffer = new char[0x800];
             recv_char_index = 0;
+
+            start_wait_time = 0;
         }
 
         void (*read_callback)(String, String);
@@ -423,6 +433,9 @@ namespace dodobot_serial
     {
         DATA_SERIAL.begin(115200);
         INFO_SERIAL.begin(115200);
+
+        // DATA_SERIAL.setTimeout(1000);
+        // INFO_SERIAL.setTimeout(1000);
         // DATA_SERIAL.begin(500000);  // see https://www.pjrc.com/teensy/td_uart.html for UART info
         // while (!INFO_SERIAL) {
         //     delay(1);

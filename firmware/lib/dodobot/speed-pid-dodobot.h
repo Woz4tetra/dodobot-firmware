@@ -14,8 +14,7 @@ namespace dodobot_speed_pid
     // double max_linear_speed_cps = max_rpm * 2.0 * PI * wheel_radius_cm / 60.0;  // cm per s, no load
     // double max_linear_speed_cps = 915.0;
     // double cps_to_cmd = 255.0 / max_linear_speed_cps;
-    // double max_linear_speed_tps = 8200.0;  // max speed, no load measured in ticks per second (~915cm/s)
-    double max_linear_speed_tps = 6800.0;  // max speed, with load measured in ticks per second
+    double max_linear_speed_tps = 9500.0;  // max speed, with load measured in ticks per second
     double tps_to_cmd = 255.0 / max_linear_speed_tps;
     // double min_tps = 700.0;
     double min_tps = 0.0;
@@ -140,6 +139,13 @@ namespace dodobot_speed_pid
         motorB_pid.Kd = pid_Ks[5];
         dodobot_chassis::speed_smooth_kA = pid_Ks[6];  // defined in chassis-dodobot.h
         dodobot_chassis::speed_smooth_kB = pid_Ks[7];  // defined in chassis-dodobot.h
+
+        DODOBOT_SERIAL_WRITE_BOTH("pidks", "d", 1);
+
+    }
+
+    void failed_to_set_ks() {
+        DODOBOT_SERIAL_WRITE_BOTH("pidks", "d", 0);
     }
 
     void reset_pid() {
