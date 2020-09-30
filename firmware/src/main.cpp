@@ -160,7 +160,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         for (index = 0; index < dodobot_speed_pid::NUM_PID_KS; index++) {
             CHECK_SEGMENT_BREAK(serial_obj); k_value = serial_obj->get_segment().toFloat();
             dodobot_speed_pid::pid_Ks[index] = k_value;
-            dodobot_serial::println_info("Set k %d: %f", index, k_value);
+            dodobot_serial::println_info("Set k %d: %.2f", index, k_value);
         }
         if (index == dodobot_speed_pid::NUM_PID_KS) {
             dodobot_speed_pid::set_Ks();

@@ -67,6 +67,10 @@ namespace dodobot_speed_pid
             prev_update_time = micros();
         }
 
+        double get_target() {
+            return target;
+        }
+
         void reset() {
             prev_error = 0.0;
             error_sum = 0.0;
