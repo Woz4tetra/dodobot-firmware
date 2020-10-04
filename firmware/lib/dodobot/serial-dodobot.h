@@ -14,6 +14,8 @@ char SERIAL_MSG_BUFFER[SERIAL_MSG_BUFFER_SIZE];
 
 #define CHECK_SEGMENT(__SERIAL_OBJ__)  if (!__SERIAL_OBJ__->next_segment()) {  println_error("Not enough segments supplied for #%d: %s", __SERIAL_OBJ__->get_segment_num(), packet.c_str());  return;  }
 #define CHECK_SEGMENT_BREAK(__SERIAL_OBJ__)  if (!__SERIAL_OBJ__->next_segment()) {  println_error("Not enough segments supplied for #%d: %s", __SERIAL_OBJ__->get_segment_num(), packet.c_str());  break;  }
+
+
 #define DODOBOT_SERIAL_WRITE_BOTH(...)  dodobot_serial::data->write(__VA_ARGS__);  dodobot_serial::info->write(__VA_ARGS__);
 
 namespace dodobot_serial

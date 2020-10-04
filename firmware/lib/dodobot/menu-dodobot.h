@@ -638,6 +638,7 @@ namespace dodobot_menu
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX += 1; break;
             case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position - 625 * dodobot_linear::microsteps); break;
             case DRIVE_MENU: drive_robot_forward(-3000.0); break;
+            case GRIPPER_MENU: dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 10); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX += 1; break;
             default: break;
         }
@@ -649,6 +650,7 @@ namespace dodobot_menu
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX -= 1; break;
             case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position + 625 * dodobot_linear::microsteps); break;
             case DRIVE_MENU: drive_robot_forward(3000.0); break;
+            case GRIPPER_MENU: dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 10); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX -= 1; break;
             default: break;
         }
@@ -658,6 +660,7 @@ namespace dodobot_menu
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "<");
         switch (DISPLAYED_MENU) {
             case DRIVE_MENU: rotate_robot(-2000.0); break;
+            case GRIPPER_MENU: dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 1); break;
             default: break;
             // add new menu entry callbacks (if needed)
         }
@@ -667,6 +670,7 @@ namespace dodobot_menu
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", ">");
         switch (DISPLAYED_MENU) {
             case DRIVE_MENU: rotate_robot(2000.0); break;
+            case GRIPPER_MENU: dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 1); break;
             default: break;
             // add new menu entry callbacks (if needed)
         }

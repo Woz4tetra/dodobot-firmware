@@ -18,7 +18,7 @@ namespace dodobot_gripper
 
     const int MAX_POS = 180;
     const int MIN_POS = 0;
-    const int OPEN_POS = 30;
+    const int OPEN_POS = 0;
     const int CLOSE_POS = 180;
     const int DEFAULT_GRIP_THRESHOLD = 40;
 
@@ -29,6 +29,7 @@ namespace dodobot_gripper
     bool gripper_attached = false;
 
     int grip_threshold = 0;
+    int pos_threshold = 0;
     bool grip_reached = false;
 
     // FSRs
@@ -67,18 +68,19 @@ namespace dodobot_gripper
 
     void report_gripper_pos();
 
-    void open_gripper()
+    void open_gripper(int position = OPEN_POS)
     {
-        set_servo(OPEN_POS);
+        set_servo(position);
         grip_reached = true;
         report_gripper_pos();
     }
 
-    void close_gripper(int threshold = -1) {
+    void close_gripper(int threshold = -1, int position = MAX_POS) {
         if (threshold < 0) {
             threshold = DEFAULT_GRIP_THRESHOLD;
         }
         grip_threshold = threshold;
+        pos_threshold = position;
         grip_reached = false;
     }
 
@@ -114,7 +116,7 @@ namespace dodobot_gripper
             report_gripper_pos();
             return;
         }
-        if (gripper_pos >= CLOSE_POS) {
+        if (gripper_pos >= CLOSE_POS || gripper_pos >= pos_threshold) {
             grip_reached = true;
             report_gripper_pos();
             return;

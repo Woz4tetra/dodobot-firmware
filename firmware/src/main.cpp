@@ -82,12 +82,27 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         CHECK_SEGMENT(serial_obj);
         int gripper_state = serial_obj->get_segment().toInt();
         int grip_threshold = -1;
+        int pos_threshold = 0;
         switch (gripper_state)
         {
-            case 0: dodobot_gripper::open_gripper(); break;
+            case 0:
+                if (serial_obj->next_segment()) {
+                    pos_threshold = serial_obj->get_segment().toInt();
+                    dodobot_gripper::open_gripper(pos_threshold);
+                }
+                else {
+                    dodobot_gripper::open_gripper();
+                }
+                break;
             case 1:
                 CHECK_SEGMENT(serial_obj);  grip_threshold = serial_obj->get_segment().toInt();
-                dodobot_gripper::close_gripper(grip_threshold);
+                if (serial_obj->next_segment()) {
+                    pos_threshold = serial_obj->get_segment().toInt();
+                    dodobot_gripper::close_gripper(grip_threshold, pos_threshold);
+                }
+                else {
+                    dodobot_gripper::close_gripper(grip_threshold);
+                }
                 break;
             case 2:
                 CHECK_SEGMENT(serial_obj);  grip_threshold = serial_obj->get_segment().toInt();
