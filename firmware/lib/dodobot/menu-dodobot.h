@@ -26,8 +26,11 @@ namespace dodobot_menu
     String date_string = "00:00:00AM";
     uint32_t prev_date_str_update = 0;
 
-    const String network_string_default = "No network info received!";
-    String network_string = network_string_default;
+    String network_ip = "";
+    String network_netmask = "";
+    String network_broadcast = "";
+    String network_name = "";
+    String network_error = "";
     uint32_t network_str_update = 0;
 
     void init_menus()
@@ -226,18 +229,27 @@ namespace dodobot_menu
 
     void draw_network_menu()
     {
-        if (network_str_update > 10000) {
+        if (CURRENT_TIME - network_str_update > 300000) {
             tft.setTextColor(ST77XX_YELLOW, ST77XX_BLACK);
-            if (network_str_update > 60000) {
+            if (CURRENT_TIME - network_str_update > 400000) {
                 tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
             }
         }
-        if (network_string == network_string_default) {
+        if (network_ip.length() == 0) {
             tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
         }
 
         int y_offset = TOP_BAR_H + 5;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println(network_string);
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("interface: " + network_name); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("IP: " + network_ip); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("NM: " + network_netmask); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("BC: " + network_broadcast); y_offset += ROW_SIZE;
+        if (network_error.length() == 0 || network_error.equals(" ")) {
+            tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("                        "); y_offset += ROW_SIZE;
+        }
+        else {
+            tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("error: " + network_error); y_offset += ROW_SIZE;
+        }
 
         tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
     }
