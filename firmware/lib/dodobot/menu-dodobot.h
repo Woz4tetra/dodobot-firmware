@@ -26,6 +26,10 @@ namespace dodobot_menu
     String date_string = "00:00:00AM";
     uint32_t prev_date_str_update = 0;
 
+    const String network_string_default = "No network info received!";
+    String network_string = network_string_default;
+    uint32_t network_str_update = 0;
+
     void init_menus()
     {
         int16_t  x1, y1;
@@ -140,7 +144,7 @@ namespace dodobot_menu
 
     enum menu_names {
         MAIN_MENU,
-        SENSORS_MENU,
+        NETWORK_MENU,
         DRIVE_MENU,
         LINEAR_MENU,
         TILTER_MENU,
@@ -151,7 +155,7 @@ namespace dodobot_menu
     };
 
     const menu_names MAIN_MENU_ENUM_MAPPING[] PROGMEM = {
-        SENSORS_MENU,
+        NETWORK_MENU,
         DRIVE_MENU,
         LINEAR_MENU,
         TILTER_MENU,
@@ -160,7 +164,7 @@ namespace dodobot_menu
     };
 
     const char* const MAIN_MENU_ENTRIES[] PROGMEM = {
-        "Sensors",
+        "Networking",
         "Drive Motors",
         "Linear",
         "Camera Tilter",
@@ -220,9 +224,22 @@ namespace dodobot_menu
     // Sensors menu
     //
 
-    void draw_sensors_menu()
+    void draw_network_menu()
     {
-        // tft.setCursor(BORDER_OFFSET_W, TOP_BAR_H + 5); tft.println("X: " + String(dodobot_bno::orientationData.orientation.x) + "   ");
+        if (network_str_update > 10000) {
+            tft.setTextColor(ST77XX_YELLOW, ST77XX_BLACK);
+            if (network_str_update > 60000) {
+                tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
+            }
+        }
+        if (network_string == network_string_default) {
+            tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
+        }
+
+        int y_offset = TOP_BAR_H + 5;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println(network_string);
+
+        tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
     }
 
     //
@@ -718,7 +735,7 @@ namespace dodobot_menu
         }
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: draw_main_menu(); break;
-            case SENSORS_MENU: draw_sensors_menu(); break;
+            case NETWORK_MENU: draw_network_menu(); break;
             case DRIVE_MENU: draw_drive_menu(); break;
             case LINEAR_MENU: draw_linear_menu(); break;
             case TILTER_MENU: draw_tilter_menu(); break;

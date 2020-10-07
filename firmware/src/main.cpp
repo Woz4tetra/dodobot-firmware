@@ -113,6 +113,14 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         }
     }
 
+    // gripper settings
+    else if (category.equals("gripcfg")) {
+        CHECK_SEGMENT(serial_obj); int open_pos = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj); int close_pos = serial_obj->get_segment().toInt();
+        dodobot_gripper::set_limits(open_pos, close_pos);
+        dodobot_serial::println_info("Setting gripper limits: %d, %d", open_pos, close_pos);
+    }
+
     // set tilter
     else if (category.equals("tilt")) {
         CHECK_SEGMENT(serial_obj);
@@ -209,6 +217,12 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         CHECK_SEGMENT(serial_obj);
         dodobot_menu::date_string = serial_obj->get_segment();
         dodobot_menu::prev_date_str_update = CURRENT_TIME;
+    }
+
+    else if (category.equals("network")) {
+        CHECK_SEGMENT(serial_obj);
+        dodobot_menu::network_string = serial_obj->get_segment();
+        dodobot_menu::network_str_update = CURRENT_TIME;
     }
 }
 
