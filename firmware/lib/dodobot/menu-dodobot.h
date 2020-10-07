@@ -7,6 +7,7 @@
 #include "tilter-dodobot.h"
 #include "speed-pid-dodobot.h"
 #include "gripper-dodobot.h"
+#include "breakout-dodobot.h"
 
 using namespace dodobot_display;
 
@@ -154,7 +155,7 @@ namespace dodobot_menu
         GRIPPER_MENU,
         SHUTDOWN_MENU,
         NONE_MENU,
-        NOTIFICATION_MENU
+        BREAKOUT_MENU
     };
 
     const menu_names MAIN_MENU_ENUM_MAPPING[] PROGMEM = {
@@ -163,6 +164,7 @@ namespace dodobot_menu
         LINEAR_MENU,
         TILTER_MENU,
         GRIPPER_MENU,
+        BREAKOUT_MENU,
         SHUTDOWN_MENU
     };
 
@@ -172,9 +174,10 @@ namespace dodobot_menu
         "Linear",
         "Camera Tilter",
         "Gripper",
+        "Breakout",
         "Shutdown/restart"
     };
-    const int MAIN_MENU_ENTRIES_LEN = 6;
+    const int MAIN_MENU_ENTRIES_LEN = 7;
 
     menu_names DISPLAYED_MENU = MAIN_MENU;
     menu_names PREV_DISPLAYED_MENU = NONE_MENU;  // for detecting screen change events
@@ -224,7 +227,7 @@ namespace dodobot_menu
     }
 
     //
-    // Sensors menu
+    // Network menu
     //
 
     void draw_network_menu()
@@ -339,282 +342,6 @@ namespace dodobot_menu
     }
 
     //
-    // Safety menu
-    //
-    /*struct safety_diagram {
-        const int w = 10;
-        const int h = 15;
-        const int corner_r = 2;
-        int origin_x;
-        int origin_y;
-
-        int bar_h = 8;
-        int error_bar_w = 8;
-        uint16_t max_display_val_mm = 500;
-        uint16_t front_bar_color;
-        uint16_t back_bar_color;
-        int bar_max_w;
-        double mm_to_pixels;
-
-        int front_bar_w = 0;
-        int front_bar_origin_x;
-        int front_bar_origin_y;
-
-        int back_bar_w = 0;
-        int back_bar_origin_x;
-        int back_bar_origin_y;
-
-        int servo_indicator_r = 20;
-        int servo_ind_ball_r = 3;
-        double front_servo_angle = -1.0;
-        int front_servo_origin_x;
-        int front_servo_origin_y;
-        int front_servo_x;
-        int front_servo_y;
-
-        double back_servo_angle = -1.0;
-        int back_servo_origin_x;
-        int back_servo_origin_y;
-        int back_servo_x;
-        int back_servo_y;
-
-        int front_lower_threshold_x;
-        int back_lower_threshold_x;
-        int front_upper_threshold_x;
-        int back_upper_threshold_x;
-        int threshold_y;
-        int threshold_len = 18;
-
-    } sd_vals;
-
-    int update_front_lower_threshold_x() {
-        return SCREEN_MID_W + sd_vals.w / 2 + (int)(sd_vals.mm_to_pixels * dodobot_tof::LOX_FRONT_OBSTACLE_LOWER_THRESHOLD_MM);
-    }
-
-    int update_back_lower_threshold_x() {
-        return SCREEN_MID_W - sd_vals.w / 2 - (int)(sd_vals.mm_to_pixels * dodobot_tof::LOX_BACK_OBSTACLE_LOWER_THRESHOLD_MM);
-    }
-
-    int update_front_upper_threshold_x() {
-        return SCREEN_MID_W + sd_vals.w / 2 + (int)(sd_vals.mm_to_pixels * dodobot_tof::LOX_FRONT_OBSTACLE_UPPER_THRESHOLD_MM);
-    }
-
-    int update_back_upper_threshold_x() {
-        return SCREEN_MID_W - sd_vals.w / 2 - (int)(sd_vals.mm_to_pixels * dodobot_tof::LOX_BACK_OBSTACLE_UPPER_THRESHOLD_MM);
-    }
-
-
-    void init_robot_safety_diagram()
-    {
-        int origin_offset_h = 25;
-        sd_vals.origin_x = SCREEN_MID_W;
-        sd_vals.origin_y = SCREEN_MID_H + origin_offset_h;
-        sd_vals.front_bar_origin_x = SCREEN_MID_W + sd_vals.w / 2;
-        sd_vals.front_bar_origin_y = SCREEN_MID_H - sd_vals.bar_h / 2 + origin_offset_h;
-        sd_vals.back_bar_origin_x = SCREEN_MID_W - sd_vals.w / 2 - 1;
-        sd_vals.back_bar_origin_y = sd_vals.front_bar_origin_y;
-
-        sd_vals.front_servo_origin_x = SCREEN_MID_W + 20;
-        sd_vals.front_servo_origin_y = SCREEN_MID_H + 40;
-        sd_vals.back_servo_origin_x = SCREEN_MID_W - 20;
-        sd_vals.back_servo_origin_y = sd_vals.front_servo_origin_y;
-
-        sd_vals.front_servo_angle = -1.0;
-        sd_vals.back_servo_angle = -1.0;
-
-        sd_vals.threshold_y = SCREEN_MID_H - sd_vals.threshold_len / 2 + origin_offset_h;
-        sd_vals.front_lower_threshold_x = update_front_lower_threshold_x();
-        sd_vals.back_lower_threshold_x = update_back_lower_threshold_x();
-        sd_vals.front_upper_threshold_x = update_front_upper_threshold_x();
-        sd_vals.back_upper_threshold_x = update_back_upper_threshold_x();
-
-        sd_vals.bar_max_w = tft.width() - sd_vals.front_bar_origin_x;
-        sd_vals.mm_to_pixels = (double)sd_vals.bar_max_w / sd_vals.max_display_val_mm;
-
-        tft.fillRoundRect(
-            sd_vals.origin_x - sd_vals.w / 2, sd_vals.origin_y - sd_vals.h / 2,
-            sd_vals.w, sd_vals.h, sd_vals.corner_r, ST7735_WHITE
-        );
-    }
-
-    void draw_tof_sensor_bars()
-    {
-        int new_threshold = update_front_lower_threshold_x();
-        if (sd_vals.front_lower_threshold_x != new_threshold) {
-            tft.drawFastVLine(sd_vals.front_lower_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_BLACK);
-            sd_vals.front_lower_threshold_x = new_threshold;
-        }
-        new_threshold = update_back_lower_threshold_x();
-        if (sd_vals.back_lower_threshold_x != new_threshold) {
-            tft.drawFastVLine(sd_vals.back_lower_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_BLACK);
-            sd_vals.back_lower_threshold_x = new_threshold;
-        }
-
-        new_threshold = update_front_upper_threshold_x();
-        if (sd_vals.front_upper_threshold_x != new_threshold) {
-            tft.drawFastVLine(sd_vals.front_upper_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_BLACK);
-            sd_vals.front_upper_threshold_x = new_threshold;
-        }
-        new_threshold = update_back_upper_threshold_x();
-        if (sd_vals.back_upper_threshold_x != new_threshold) {
-            tft.drawFastVLine(sd_vals.back_upper_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_BLACK);
-            sd_vals.back_upper_threshold_x = new_threshold;
-        }
-
-        tft.fillRect(sd_vals.front_bar_origin_x, sd_vals.front_bar_origin_y,
-            sd_vals.front_bar_w, sd_vals.bar_h, ST7735_BLACK);
-        tft.fillRect(sd_vals.back_bar_origin_x, sd_vals.back_bar_origin_y,
-            sd_vals.back_bar_w, sd_vals.bar_h, ST7735_BLACK);
-
-        if (dodobot_tof::is_front_ok_VL53L0X()) {
-            sd_vals.front_bar_w = (int)(sd_vals.mm_to_pixels * dodobot_tof::measure1.RangeMilliMeter);
-            if (dodobot::is_obstacle_in_front()) {
-                sd_vals.front_bar_color = ST7735_YELLOW;
-            }
-            else {
-                if (dodobot_tof::measure1.RangeMilliMeter < sd_vals.max_display_val_mm) {
-                    sd_vals.front_bar_color = ST7735_GREEN;
-                }
-                else {
-                    sd_vals.front_bar_color = ST7735_BLUE;
-                }
-            }
-
-        }
-        else {
-            sd_vals.front_bar_color = ST7735_RED;
-            sd_vals.front_bar_w = sd_vals.error_bar_w;
-        }
-
-        if (dodobot_tof::is_back_ok_VL53L0X()) {
-            sd_vals.back_bar_w = -(int)(sd_vals.mm_to_pixels * dodobot_tof::measure2.RangeMilliMeter);
-            if (dodobot::is_obstacle_in_back()) {
-                sd_vals.back_bar_color = ST7735_YELLOW;
-            }
-            else {
-                if (dodobot_tof::measure2.RangeMilliMeter < sd_vals.max_display_val_mm) {
-                    sd_vals.back_bar_color = ST7735_GREEN;
-                }
-                else {
-                    sd_vals.back_bar_color = ST7735_BLUE;
-                }
-            }
-        }
-        else {
-            sd_vals.back_bar_color = ST7735_RED;
-            sd_vals.back_bar_w = -sd_vals.error_bar_w;
-        }
-
-        tft.fillRect(sd_vals.front_bar_origin_x, sd_vals.front_bar_origin_y,
-            sd_vals.front_bar_w, sd_vals.bar_h, sd_vals.front_bar_color);
-        tft.fillRect(sd_vals.back_bar_origin_x, sd_vals.back_bar_origin_y,
-            sd_vals.back_bar_w, sd_vals.bar_h, sd_vals.back_bar_color);
-
-        tft.drawFastVLine(sd_vals.front_lower_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_WHITE);
-        tft.drawFastVLine(sd_vals.back_lower_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_WHITE);
-        tft.drawFastVLine(sd_vals.front_upper_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_WHITE);
-        tft.drawFastVLine(sd_vals.back_upper_threshold_x, sd_vals.threshold_y, sd_vals.threshold_len, ST7735_WHITE);
-    }*/
-
-    /*void draw_safety_servo_diagrams()
-    {
-        double new_front_servo_angle = dodobot_servos::tilter_servo_cmd_to_angle(
-            dodobot_servos::servo_positions[FRONT_TILTER_SERVO_NUM]
-        ) * PI / 180.0;
-        double new_back_servo_angle = dodobot_servos::tilter_servo_cmd_to_angle(
-            dodobot_servos::servo_positions[BACK_TILTER_SERVO_NUM]
-        ) * PI / 180.0;
-
-        // erase previous and redraw lines if the value changed
-        if (new_front_servo_angle != sd_vals.front_servo_angle)
-        {
-            if (sd_vals.front_servo_angle != -1.0)
-            {
-                tft.drawLine(
-                    sd_vals.front_servo_origin_x, sd_vals.front_servo_origin_y,
-                    sd_vals.front_servo_x, sd_vals.front_servo_y, ST7735_BLACK
-                );
-                tft.drawCircle(
-                    sd_vals.front_servo_x, sd_vals.front_servo_y,
-                    sd_vals.servo_ind_ball_r, ST7735_BLACK
-                );
-            }
-
-            sd_vals.front_servo_angle = new_front_servo_angle;
-            sd_vals.front_servo_x = -cos(sd_vals.front_servo_angle) * sd_vals.servo_indicator_r + sd_vals.front_servo_origin_x;
-            sd_vals.front_servo_y = sin(sd_vals.front_servo_angle) * sd_vals.servo_indicator_r + sd_vals.front_servo_origin_y;
-
-            tft.drawFastHLine(sd_vals.front_servo_origin_x, sd_vals.front_servo_origin_y, sd_vals.servo_indicator_r, ST7735_WHITE);
-            tft.drawFastVLine(sd_vals.front_servo_origin_x, sd_vals.front_servo_origin_y, sd_vals.servo_indicator_r, ST7735_WHITE);
-
-            tft.drawLine(
-                sd_vals.front_servo_origin_x, sd_vals.front_servo_origin_y,
-                sd_vals.front_servo_x, sd_vals.front_servo_y, ST7735_WHITE
-            );
-            tft.drawCircle(
-                sd_vals.front_servo_x, sd_vals.front_servo_y,
-                sd_vals.servo_ind_ball_r, ST7735_WHITE
-            );
-        }
-        if (new_back_servo_angle != sd_vals.back_servo_angle)
-        {
-            if (sd_vals.back_servo_angle != -1.0)
-            {
-                tft.drawLine(
-                    sd_vals.back_servo_origin_x, sd_vals.back_servo_origin_y,
-                    sd_vals.back_servo_x, sd_vals.back_servo_y, ST7735_BLACK
-                );
-                tft.drawCircle(
-                    sd_vals.back_servo_x, sd_vals.back_servo_y,
-                    sd_vals.servo_ind_ball_r, ST7735_BLACK
-                );
-            }
-
-            sd_vals.back_servo_angle = new_back_servo_angle;
-            sd_vals.back_servo_x = cos(sd_vals.back_servo_angle) * sd_vals.servo_indicator_r + sd_vals.back_servo_origin_x;
-            sd_vals.back_servo_y = sin(sd_vals.back_servo_angle) * sd_vals.servo_indicator_r + sd_vals.back_servo_origin_y;
-
-            tft.drawFastHLine(sd_vals.back_servo_origin_x, sd_vals.back_servo_origin_y, -sd_vals.servo_indicator_r, ST7735_WHITE);
-            tft.drawFastVLine(sd_vals.back_servo_origin_x, sd_vals.back_servo_origin_y, sd_vals.servo_indicator_r, ST7735_WHITE);
-
-            tft.drawLine(
-                sd_vals.back_servo_origin_x, sd_vals.back_servo_origin_y,
-                sd_vals.back_servo_x, sd_vals.back_servo_y, ST7735_WHITE
-            );
-            tft.drawCircle(
-                sd_vals.back_servo_x, sd_vals.back_servo_y,
-                sd_vals.servo_ind_ball_r, ST7735_WHITE
-            );
-        }
-    }*/
-
-    /*void draw_safety_menu()
-    {
-        int y_offset = TOP_BAR_H + 5;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println(
-            "tof f: " +
-            String(dodobot_tof::measure1.RangeMilliMeter) + ", " +
-            String(dodobot_tof::measure1.RangeStatus) + ", " +
-            String(dodobot_tof::LOX_FRONT_OBSTACLE_LOWER_THRESHOLD_MM) + ", " +
-            String(dodobot_tof::LOX_FRONT_OBSTACLE_UPPER_THRESHOLD_MM) +
-            "   ");  y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println(
-            "tof b: " +
-            String(dodobot_tof::measure2.RangeMilliMeter) + ", " +
-            String(dodobot_tof::measure2.RangeStatus) + ", " +
-            String(dodobot_tof::LOX_BACK_OBSTACLE_LOWER_THRESHOLD_MM) + ", " +
-            String(dodobot_tof::LOX_BACK_OBSTACLE_UPPER_THRESHOLD_MM) +
-            "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("fsr l: " + String(dodobot_fsr::fsr_1_val) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("fsr r: " + String(dodobot_fsr::fsr_2_val) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("servo f: " + String(dodobot_servos::servo_positions[FRONT_TILTER_SERVO_NUM]) + "   "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("servo b: " + String(dodobot_servos::servo_positions[BACK_TILTER_SERVO_NUM]) + "   "); // y_offset += ROW_SIZE;
-
-        draw_tof_sensor_bars();
-        // draw_safety_servo_diagrams();
-    }*/
-
-    //
     // Shutdown menu
     //
 
@@ -690,6 +417,7 @@ namespace dodobot_menu
         switch (DISPLAYED_MENU) {
             case DRIVE_MENU: rotate_robot(-2000.0); break;
             case GRIPPER_MENU: dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 1); break;
+            case BREAKOUT_MENU: dodobot_breakout::left_event(); break;
             default: break;
             // add new menu entry callbacks (if needed)
         }
@@ -700,6 +428,7 @@ namespace dodobot_menu
         switch (DISPLAYED_MENU) {
             case DRIVE_MENU: rotate_robot(2000.0); break;
             case GRIPPER_MENU: dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 1); break;
+            case BREAKOUT_MENU: dodobot_breakout::right_event(); break;
             default: break;
             // add new menu entry callbacks (if needed)
         }
@@ -729,6 +458,7 @@ namespace dodobot_menu
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: PREV_MAIN_MENU_SELECT_INDEX = -1; break;  // force a redraw of the menu list when switching
             case SHUTDOWN_MENU: PREV_SHUTDOWN_MENU_SELECT_INDEX = -1;
+            case BREAKOUT_MENU: dodobot_breakout::on_load(); break;
             default: break;
             // add new menu entry callbacks (if needed)
         }
@@ -752,13 +482,25 @@ namespace dodobot_menu
             case LINEAR_MENU: draw_linear_menu(); break;
             case TILTER_MENU: draw_tilter_menu(); break;
             case GRIPPER_MENU: draw_gripper_menu(); break;
+            case BREAKOUT_MENU: dodobot_breakout::draw(); break;
             case SHUTDOWN_MENU: draw_shutdown_menu(); break;
             default: break;
             // add new menu entry callbacks
         }
         PREV_DISPLAYED_MENU = DISPLAYED_MENU;
 
-        draw_topbar();
+        switch (DISPLAYED_MENU) {
+            case MAIN_MENU:
+            case NETWORK_MENU:
+            case DRIVE_MENU:
+            case LINEAR_MENU:
+            case TILTER_MENU:
+            case GRIPPER_MENU:
+            case SHUTDOWN_MENU:  draw_topbar();
+
+            case BREAKOUT_MENU:
+            default: break;
+        }
     }
 };
 
