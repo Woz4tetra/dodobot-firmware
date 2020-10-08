@@ -11,6 +11,7 @@
 #include "speed-pid-dodobot.h"
 #include "latch-circuit-dodobot.h"
 #include "menu-dodobot.h"
+#include "breakout-dodobot.h"
 
 
 void set_active(bool state)
@@ -227,6 +228,10 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         CHECK_SEGMENT(serial_obj); dodobot_menu::network_error = serial_obj->get_segment();
         dodobot_menu::network_str_update = CURRENT_TIME;
     }
+
+    else if (category.equals("breakout")) {
+        CHECK_SEGMENT(serial_obj); dodobot_breakout::level_config = serial_obj->get_segment();
+    }
 }
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
@@ -313,6 +318,9 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             dodobot_serial::println_info("IR: 9");
             // dodobot_linear::home_stepper();
             break;  // 9
+        case 0xffff:  // repeat last command
+            dodobot_menu::repeat_key_event();
+            break;
     }
 }
 

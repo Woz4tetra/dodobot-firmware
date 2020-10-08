@@ -10,76 +10,598 @@
 
 namespace dodobot_breakout
 {
-    const int8_t X_MIN = 0;
-    const int8_t X_MAX = ST7735_TFTHEIGHT_160;
-    const int8_t Y_MIN = 0;
-    const int8_t Y_MAX = ST7735_TFTWIDTH_128;
+    const int16_t X_MIN = 0;
+    const int16_t X_MAX = ST7735_TFTHEIGHT_160;
+    const int16_t Y_MIN = 0;
+    const int16_t Y_MAX = ST7735_TFTWIDTH_128;
 
-    class Ball {
+    const int16_t BORDER_X_MIN = X_MIN;
+    const int16_t BORDER_X_MAX = X_MAX;
+    const int16_t BORDER_Y_MIN = Y_MIN + 20;
+    const int16_t BORDER_Y_MAX = Y_MAX;
+
+    const uint32_t UPDATE_DELAY_MS = 30;
+
+    const float DEFAULT_BALL_VX = 1.0;
+    const float DEFAULT_BALL_VY = 1.2;
+
+    int16_t sign(int16_t x) {
+        return (x > 0) - (x < 0);
+    }
+
+    class GameObject {
+    protected:
+        int16_t hitbox_x, hitbox_y;
+        int16_t hitbox_w, hitbox_h;
+        int16_t hitbox_right, hitbox_bottom;
+        int16_t hitbox_cx, hitbox_cy;
+
+
+    public:
+        bool is_hidden;
+
+        GameObject(): hitbox_x(0), hitbox_y(0), hitbox_w(0), hitbox_h(0)
+        {
+            is_hidden = false;
+            update_hitbox_vars();
+        }
+        GameObject(int16_t x, int16_t y, int16_t w, int16_t h):
+            hitbox_x(x), hitbox_y(y), hitbox_w(w), hitbox_h(h)
+        {
+            is_hidden = false;
+            update_hitbox_vars();
+        }
+
+        void update_hitbox_vars()
+        {
+            hitbox_right = hitbox_x + hitbox_w;
+            hitbox_bottom = hitbox_y + hitbox_h;
+            hitbox_cx = (hitbox_x + hitbox_right) / 2;
+            hitbox_cy = (hitbox_y + hitbox_bottom) / 2;
+        }
+
+        bool has_collided(GameObject* other)
+        {
+            if (is_hidden || other->is_hidden) {
+                return false;
+            }
+            if (hitbox_x >= other->hitbox_right || other->hitbox_x >= hitbox_right) {
+                return false;
+            }
+            if (hitbox_y >= other->hitbox_bottom || other->hitbox_y >= hitbox_bottom) {
+                return false;
+            }
+            return true;
+        }
+
+        char collision_dir(GameObject* other)
+        {
+            char dir = 'x';
+            int8_t dirs = 0;
+            if (hitbox_right > other->hitbox_right || hitbox_x < other->hitbox_x) {
+                dir = 'x';
+                dirs++;
+            }
+            if (hitbox_bottom > other->hitbox_bottom || hitbox_y < other->hitbox_y) {
+                dir = 'y';
+                dirs++;
+            }
+            if (dirs == 2) {
+                return 'b';
+            }
+            else {
+                return dir;
+            }
+        }
+
+        void hide() {
+            is_hidden = true;
+        }
+
+        void show() {
+            is_hidden = false;
+        }
+
+        int update() { return 0; }
+        void draw() {  }
+    };
+
+    class Ball: public GameObject {
     private:
-        int8_t x, y;
-        uint_t radius;
+        float x, y;
+        float prev_x, prev_y;
+        float x0, y0;
+        uint16_t radius;
+        uint16_t color;
+
+        int16_t x_border_max, x_border_min;
+        int16_t y_border_max, y_border_min;
+    public:
         float vx, vy;
 
-        void bounce(char side)
+        Ball(uint16_t r, uint16_t c): radius(r), color(c)
         {
-            // double angle = atan2(vy, vx);
-            // double speed = sqrt(vy * vy + vx * vx);
-            switch (side) {
-                case 'n': vy = -vy; break;
-                case 'e': vx = -vx; break;
-                case 's': vy = -vy; break;
-                case 'w': vx = -vx; break;
-            }
-        }
-    public:
-        Ball(uint8_t r): x(0), y(0), radius(r) {
-            vx = 2.0;
-            vy = 3.0;
+            reset(0, 0);
+            prev_x = x0;
+            prev_y = y0;
+
+            x_border_max = BORDER_X_MAX;
+            x_border_min = BORDER_X_MIN;
+            y_border_max = BORDER_Y_MAX;
+            y_border_min = BORDER_Y_MIN;
         }
 
-        void update()
+        int16_t get_x()  { return (int16_t)x; }
+        int16_t get_y()  { return (int16_t)y; }
+        uint16_t get_radius()  { return radius; }
+
+        void reset(float x0, float y0)
         {
-            int8_t new_x = x + (int8_t)vx;
-            int8_t new_y = y + (int8_t)vy;
-            if (new_x > X_MAX) {
-                bounce('e');
-                new_x = x + (int8_t)vx;
+            vx = 0.0;
+            vy = 0.0;
+            x = x0;
+            y = y0;
+            update_hitbox();
+        }
+
+        void bounce(char dir)
+        {
+            switch (dir) {
+                case 'x': vx = -vx; break;
+                case 'y': vy = -vy; break;
+                case 'b': vx = -vx; vy = -vy; break;
             }
-            if (new_x < X_MIN) {
-                bounce('w');
-                new_x = x + (int8_t)vx;
+        }
+
+        void update_hitbox()
+        {
+            hitbox_x = x - radius;
+            hitbox_y = y - radius;
+            hitbox_w = 2 * radius;
+            hitbox_h = 2 * radius;
+            update_hitbox_vars();
+        }
+
+        int update()
+        {
+            float new_x = x + vx;
+            float new_y = y + vy;
+
+            if (new_x > x_border_max - radius || new_x < x_border_min + radius) {
+                bounce('x');
+                new_x = x + vx;
             }
 
-            if (new_y > Y_MAX) {
-                bounce('n');
-                new_y = y + (int8_t)vy;
-            }
-            if (new_x < Y_MIN) {
-                bounce('s');
-                new_y = y + (int8_t)vy;
+            if (new_y < y_border_min + radius) {
+                bounce('y');
+                new_y = y + vy;
             }
 
-            x = new_x;
-            y = new_y;
+            prev_x = x;
+            prev_y = y;
+
+            if (new_y > y_border_max - radius) {
+                return 1;
+            }
+            else {
+
+                x = new_x;
+                y = new_y;
+            }
+
+            update_hitbox();
+            return 0;
         }
 
         void draw() {
-            tft.fillCircle(x, y, radius, ST77XX_GREEN);
+            dodobot_display::tft.fillCircle((int16_t)prev_x, (int16_t)prev_y, radius, ST77XX_BLACK);
+            dodobot_display::tft.fillCircle((int16_t)x, (int16_t)y, radius, color);
+            dodobot_display::tft.drawCircle((int16_t)x, (int16_t)y, radius, ST77XX_WHITE);
         }
     };
 
-    void draw();
-    void on_load();
-    void right_event();
-    void left_event();
+    class Brick: public GameObject {
+    private:
+        uint16_t color;
+        bool has_been_drawn;
+        int16_t border;
 
-    Ball ball;
+    public:
+        Brick (int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c) : GameObject(x, y, w, h) {
+            color = c;
+            has_been_drawn = false;
+            border = 1;
+        }
+
+        // void update() {
+        //
+        // }
+
+        void set_color(uint16_t c) {
+            color = c;
+            has_been_drawn = false;
+        }
+
+        void draw() {
+            if (is_hidden) {
+                return;
+            }
+            // if (has_been_drawn) {
+            //     return;
+            // }
+            dodobot_display::tft.fillRect(hitbox_x + border, hitbox_y + border, hitbox_w - (2 * border), hitbox_h - (2 * border), color);
+            has_been_drawn = true;
+        }
+
+        void hide() {
+            dodobot_display::tft.fillRect(hitbox_x, hitbox_y, hitbox_w, hitbox_h, ST77XX_BLACK);
+            is_hidden = true;
+        }
+    };
+
+    class BrickCollection {
+    private:
+        int16_t start_x, start_y;
+        int16_t brick_width, brick_height;
+        uint16_t brick_color;
+
+        String level;
+        Brick** bricks;
+        size_t bricks_len;
+
+        void create_brick(size_t index, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c) {
+            if (bricks == NULL || index >= bricks_len) {
+                return;
+            }
+            bricks[index] = new Brick(x, y, w, h, c);
+        }
+
+        size_t num_bricks()
+        {
+            size_t count = 0;
+            for (size_t index = 0; index < level.length(); index++) {
+                if (level.charAt(index) == '#') {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+    public:
+        BrickCollection(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c):
+                start_x(x), start_y(y), brick_width(w), brick_height(h), brick_color(c) {
+            bricks_len = 0;
+            level = "";
+        }
+
+        void create_level(String l)
+        {
+            level = l;
+            bricks_len = num_bricks();
+            if (bricks_len == 0) {
+                return;
+            }
+
+            bricks = new Brick*[bricks_len];
+            size_t brick_index = 0;
+
+            int16_t x = start_x;
+            int16_t y = start_y;
+            for (size_t index = 0; index < level.length(); index++) {
+                switch (level.charAt(index)) {
+                    case '-':   // row return
+                        x = start_x;
+                        y += brick_height;
+                        break;
+                    case '#':  // brick here
+                        create_brick(brick_index, x, y, brick_width, brick_height, ST77XX_WHITE);
+                        x += brick_width;
+                        brick_index++;
+                        break;
+                    default:
+                        x += brick_width;
+                        break;  // any other character = no brick
+                }
+            }
+        }
+
+        void delete_level()
+        {
+            for (size_t index = 0; index < bricks_len; index++) {
+                if (bricks[index] == NULL) {
+                    continue;
+                }
+                bricks[index]->hide();
+            }
+            delete[] bricks;
+            bricks = NULL;
+        }
+
+        void reset_level()
+        {
+            for (size_t index = 0; index < bricks_len; index++) {
+                if (bricks[index] == NULL) {
+                    continue;
+                }
+                bricks[index]->show();
+            }
+        }
+
+        void draw()
+        {
+            for (size_t index = 0; index < bricks_len; index++) {
+                if (bricks[index] == NULL) {
+                    continue;
+                }
+                bricks[index]->draw();
+            }
+        }
+
+        void has_ball_collided(Ball* ball) {
+            for (size_t index = 0; index < bricks_len; index++) {
+                if (ball->has_collided(bricks[index]))  {
+                    ball->bounce(ball->collision_dir(bricks[index]));
+                    bricks[index]->hide();
+                    break;
+                }
+            }
+        }
+
+        size_t num_shown_bricks() {
+            size_t count = 0;
+            for (size_t index = 0; index < bricks_len; index++) {
+                if (!bricks[index]->is_hidden) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        size_t get_num_bricks()  { return bricks_len; }
+
+        ~BrickCollection() {
+            delete_level();
+        }
+    };
+
+    class Paddle: public GameObject {
+    private:
+        float x, y;
+        float prev_x, prev_y;
+        float x0, y0;
+        int16_t w, h;
+        float vx, vy;
+        uint16_t color;
+        uint32_t move_timer;
+
+    public:
+        Paddle(float x0, float y0, int16_t w, int16_t h, uint16_t c): x0(x0), y0(y0), w(w), h(h), color(c)
+        {
+            reset();
+        }
+
+        int16_t get_ball_x(uint16_t r)  { return x + w / 2; }
+        int16_t get_ball_y(uint16_t r)  { return y - r; }
+
+        void reset()
+        {
+            move_timer = CURRENT_TIME;
+            vx = 0;
+            vy = 0;
+            x = x0;
+            y = y0;
+            prev_x = x0;
+            prev_y = y0;
+            update_hitbox();
+        }
+
+        void update_hitbox()
+        {
+            hitbox_x = x;
+            hitbox_y = y;
+            hitbox_w = w;
+            hitbox_h = h;
+            update_hitbox_vars();
+        }
+
+        void set_vx(float new_vx) {
+            move_timer = CURRENT_TIME;
+            vx = new_vx;
+        }
+
+        float get_vx()  { return vx;}
+
+        void reset_timer() {
+            move_timer = CURRENT_TIME;
+        }
+
+        int update()
+        {
+            if (CURRENT_TIME - move_timer > 150) {
+                vx = 0.0;
+            }
+            float new_x = x + vx;
+
+            if (new_x < BORDER_X_MIN) {
+                new_x = BORDER_X_MIN;
+            }
+            if (new_x + w > BORDER_X_MAX) {
+                new_x = BORDER_X_MAX - w;
+            }
+
+            prev_x = x;
+            x = new_x;
+            update_hitbox();
+            return 0;
+        }
+
+        void set_ball_speed(Ball* ball) {
+            int16_t impact_offset = ball->get_x() - ((int16_t)x + w / 2);
+            float paddle_strike_percent = fabs((float)impact_offset * 2 / (float)w);
+            if (paddle_strike_percent >= 0.9) {
+                ball->vx = DEFAULT_BALL_VX * 2.0;
+            }
+            else if (paddle_strike_percent >= 0.7) {
+                ball->vx = DEFAULT_BALL_VX * 1.5;
+            }
+            else if (paddle_strike_percent >= 0.2) {
+                ball->vx = DEFAULT_BALL_VX;
+            }
+            else {
+                ball->vx = DEFAULT_BALL_VX * 0.8;
+            }
+            if (impact_offset > 0) {
+                if (ball->vx < 0) {
+                    ball->vx = -ball->vx;
+                }
+            }
+            else {
+                if (ball->vx > 0) {
+                    ball->vx = -ball->vx;
+                }
+            }
+            ball->vy = -ball->vy;
+        }
+
+        void draw() {
+            dodobot_display::tft.fillRect(prev_x, prev_y, w, h, ST77XX_BLACK);
+            dodobot_display::tft.fillRect((int16_t)x, (int16_t)y, w, h, color);
+            dodobot_display::tft.drawRect((int16_t)x, (int16_t)y, w, h, ST77XX_WHITE);
+        }
+    };
+
+
+    BrickCollection bricks(BORDER_X_MIN, BORDER_Y_MIN, 20, 10, ST77XX_WHITE);
+    Paddle* paddle = new Paddle(80, Y_MAX - 5, 35, 5, ST77XX_BLUE);
+    Ball* ball = new Ball(5, ST77XX_RED);
+
+    bool all_destroyed = false;
+    String victory_message = "You did it! Press Enter.";
+    uint32_t level_start_time = 0;
+    String level_config = "########-##oooo##-#oo##oo#-########";
+    // String level_config = "oooooooo-oo####oo-oooooooo-oooooooo";
+
+    void reset_ball_to_paddle() {
+        ball->reset(paddle->get_ball_x(ball->get_radius()), paddle->get_ball_y(ball->get_radius()));
+    }
+
+    void update_scoreboard()
+    {
+        dodobot_display::tft.setCursor(0, 0);
+        dodobot_display::tft.print("bricks: ");
+        dodobot_display::tft.print(bricks.num_shown_bricks());
+        dodobot_display::tft.print(" of ");
+        dodobot_display::tft.print(bricks.get_num_bricks());
+        dodobot_display::tft.println("    ");
+        dodobot_display::tft.print("time: ");
+        if (level_start_time == 0) {
+            dodobot_display::tft.print("0");
+        }
+        else {
+            float time = (float)(CURRENT_TIME - level_start_time) / 1000.0;
+            dodobot_display::tft.print(time);
+        }
+        dodobot_display::tft.println("   ");
+        dodobot_display::tft.drawFastHLine(BORDER_X_MIN, BORDER_Y_MIN - 1, BORDER_X_MAX - BORDER_X_MIN, ST77XX_WHITE);
+    }
+
+    void win_callback()
+    {
+        update_scoreboard();
+        ball->draw();
+
+        int16_t  x1, y1;
+        uint16_t w, h;
+        dodobot_display::tft.getTextBounds(victory_message, 0, 0, &x1, &y1, &w, &h);
+
+        dodobot_display::tft.setCursor((X_MAX - w) / 2, (Y_MAX - h) / 2);
+        dodobot_display::tft.print(victory_message);
+
+        level_start_time = 0;
+    }
+
+    void enter_event()
+    {
+        dodobot_display::tft.fillScreen(ST77XX_BLACK);
+        all_destroyed = false;
+        reset_ball_to_paddle();
+        bricks.reset_level();
+    }
+    void right_event() {
+        paddle->set_vx(2.0);
+    }
+    void left_event() {
+        if (ball->vx == 0.0 && ball->vy == 0.0) {
+            if (level_start_time == 0) {
+                level_start_time = CURRENT_TIME;
+            }
+            ball->vx = -DEFAULT_BALL_VX;
+            ball->vy = -DEFAULT_BALL_VY;
+        }
+        paddle->set_vx(-2.0);
+    }
+    void repeat_key_event() {
+        paddle->reset_timer();
+    }
 
     void draw()
     {
-        ball.update();
-        ball.draw();
+        if (all_destroyed) {
+            return;
+        }
+        update_scoreboard();
+
+        int result = ball->update();
+        if (result == 1) {
+            reset_ball_to_paddle();
+        }
+        ball->draw();
+
+        paddle->update();
+        paddle->draw();
+
+        if (ball->vx == 0.0 && ball->vy == 0.0)
+        {
+            if (paddle->get_vx() != 0.0) {
+                if (level_start_time == 0) {
+                    level_start_time = CURRENT_TIME;
+                }
+                if (paddle->get_vx() > 0.0) {
+                    ball->vx = DEFAULT_BALL_VX;
+                    ball->vy = -DEFAULT_BALL_VY;
+                }
+                else {
+                    ball->vx = -DEFAULT_BALL_VX;
+                    ball->vy = -DEFAULT_BALL_VY;
+                }
+            }
+        }
+
+        bricks.draw();
+        bricks.has_ball_collided(ball);
+
+        all_destroyed = bricks.num_shown_bricks() == 0;
+        if (all_destroyed) {
+            win_callback();
+        }
+
+        if (ball->has_collided(paddle))  {
+            // ball->bounce(ball->collision_dir(paddle));
+            paddle->set_ball_speed(ball);
+        }
+    }
+
+    void on_load()
+    {
+        level_start_time = 0;
+        all_destroyed = false;
+        reset_ball_to_paddle();
+        bricks.create_level(level_config);
+    }
+
+    void on_unload()
+    {
+        bricks.delete_level();
     }
 }
 

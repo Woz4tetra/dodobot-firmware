@@ -14,7 +14,8 @@ using namespace dodobot_display;
 namespace dodobot_menu
 {
     uint32_t menu_display_timer = 0;
-    const uint32_t MENU_UPDATE_DELAY_MS = 300;
+    const uint32_t MENU_UPDATE_DELAY_MS_DEFAULT = 300;
+    uint32_t MENU_UPDATE_DELAY_MS = MENU_UPDATE_DELAY_MS_DEFAULT;
 
     unsigned int ROW_SIZE = 10;
     unsigned int BORDER_OFFSET_W = 3;
@@ -442,6 +443,7 @@ namespace dodobot_menu
             case LINEAR_MENU: dodobot_linear::home_stepper(); break;
             case TILTER_MENU: dodobot_tilter::tilter_toggle(); break;
             case GRIPPER_MENU: dodobot_gripper::toggle_gripper(100); break;
+            case BREAKOUT_MENU: dodobot_breakout::enter_event(); break;
             case SHUTDOWN_MENU: shutdown_menu_enter_event(); break;
             default: break;
             // add new menu entry callbacks (if needed)
@@ -450,15 +452,32 @@ namespace dodobot_menu
     void back_menu_event() {
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "b");
         if (DISPLAYED_MENU != MAIN_MENU) {
+            switch (DISPLAYED_MENU) {
+                case BREAKOUT_MENU:  dodobot_breakout::on_unload();  break;
+                default: break;
+
+            }
             DISPLAYED_MENU = MAIN_MENU;
         }
     }
 
+    void repeat_key_event() {
+        DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "%");
+        switch (DISPLAYED_MENU) {
+            case BREAKOUT_MENU: dodobot_breakout::repeat_key_event(); break;
+            default: break;
+        }
+    }
+
     void screen_change_event() {
+        MENU_UPDATE_DELAY_MS = MENU_UPDATE_DELAY_MS_DEFAULT;
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: PREV_MAIN_MENU_SELECT_INDEX = -1; break;  // force a redraw of the menu list when switching
             case SHUTDOWN_MENU: PREV_SHUTDOWN_MENU_SELECT_INDEX = -1;
-            case BREAKOUT_MENU: dodobot_breakout::on_load(); break;
+            case BREAKOUT_MENU:
+                MENU_UPDATE_DELAY_MS = dodobot_breakout::UPDATE_DELAY_MS;
+                dodobot_breakout::on_load();
+                break;
             default: break;
             // add new menu entry callbacks (if needed)
         }
