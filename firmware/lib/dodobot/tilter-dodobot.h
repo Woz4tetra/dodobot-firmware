@@ -64,6 +64,7 @@ namespace dodobot_tilter
 
     void setup_tilter() {
         set_active(false);
+        dodobot_serial::println_info("Tilter ready");
     }
 
     void report_tilter_pos()

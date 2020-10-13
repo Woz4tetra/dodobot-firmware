@@ -169,6 +169,8 @@ namespace dodobot_speed_pid
         pid_Ks[4] = motorB_pid.Ki;
         pid_Ks[5] = motorB_pid.Kd;
         reset_pid();
+
+        dodobot_serial::println_info("Speed PID ready");
     }
 
     void update_setpointA(double new_setpoint) {

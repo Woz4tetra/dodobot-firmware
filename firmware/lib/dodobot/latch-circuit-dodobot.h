@@ -81,6 +81,8 @@ namespace dodobot_latch_circuit
         set_button_led(255);
 
         prev_button_state = is_button_pushed();
+
+        dodobot_serial::println_info("Latch ready");
     }
 
     bool is_incrementing = false;
@@ -123,7 +125,7 @@ namespace dodobot_latch_circuit
         else {
             set_button_led(255);
         }
-        
+
         if (CURRENT_TIME - usb_check_timer < USB_CHECK_INTERVAL_MS) {
             return;
         }

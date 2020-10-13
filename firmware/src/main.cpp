@@ -244,7 +244,9 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             dodobot_serial::println_info("motors_active: %d", dodobot::robot_state.motors_active);
             break;  // Play/Pause
         case 0x40bf: dodobot_serial::println_info("IR: VOL+"); break;  // VOL+
-        case 0x20df: dodobot_serial::println_info("IR: SETUP"); break;  // SETUP
+        case 0x20df: dodobot_serial::println_info("IR: SETUP");
+            // dodobot_display::setup_display();  tft.print("Display ready\n");
+            break;  // SETUP
         case 0xa05f:
             dodobot_serial::println_info("IR: ^");
             // dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() + 10000);
@@ -340,6 +342,7 @@ void setup()
     dodobot_latch_circuit::setup_latch();  tft.print("Latch ready\n");
     dodobot_menu::init_menus();
     tft.print("Dodobot is ready to go!\n");
+    dodobot_serial::println_info("Dodobot is ready to go!");
 }
 
 void loop()

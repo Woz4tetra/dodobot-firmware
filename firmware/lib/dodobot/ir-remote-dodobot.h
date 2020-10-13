@@ -23,6 +23,7 @@ namespace dodobot_ir_remote
     {
         irrecv.enableIRIn();
         irrecv.blink13(false);
+        dodobot_serial::println_info("IR ready");
     }
 
     void callback_ir(uint8_t remote_type, uint16_t value);
@@ -58,7 +59,7 @@ namespace dodobot_ir_remote
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
-        dodobot_serial::data->write("ir", "udd", CURRENT_TIME, ir_type, ir_value);
+        DODOBOT_SERIAL_WRITE_BOTH("ir", "udd", CURRENT_TIME, ir_type, ir_value);
     }
 };  // namespace dodobot_ir_remote
 

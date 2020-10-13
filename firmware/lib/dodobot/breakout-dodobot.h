@@ -22,8 +22,20 @@ namespace dodobot_breakout
 
     const uint32_t UPDATE_DELAY_MS = 30;
 
-    const float DEFAULT_BALL_VX = 1.0;
-    const float DEFAULT_BALL_VY = 1.2;
+    const float DEFAULT_BALL_VX = 1.5;
+    const float DEFAULT_BALL_VY = 1.7;
+
+    enum class BreakoutEvent
+    {
+        BRICK_COLLIDE = 1,
+        WIN_CONDITION = 2,
+        BALL_OUT_OF_BOUNDS = 3,
+        PADDLE_COLLIDE = 4
+    };
+
+    void send_event(BreakoutEvent event) {
+        dodobot_serial::info->write("breakout", "ud", CURRENT_TIME, (int)(event));
+    }
 
     int16_t sign(int16_t x) {
         return (x > 0) - (x < 0);
@@ -337,14 +349,15 @@ namespace dodobot_breakout
             }
         }
 
-        void has_ball_collided(Ball* ball) {
+        bool has_ball_collided(Ball* ball) {
             for (size_t index = 0; index < bricks_len; index++) {
                 if (ball->has_collided(bricks[index]))  {
                     ball->bounce(ball->collision_dir(bricks[index]));
                     bricks[index]->hide();
-                    break;
+                    return true;
                 }
             }
+            return false;
         }
 
         size_t num_shown_bricks() {
@@ -471,11 +484,12 @@ namespace dodobot_breakout
     };
 
 
-    BrickCollection bricks(BORDER_X_MIN, BORDER_Y_MIN, 20, 10, ST77XX_WHITE);
-    Paddle* paddle = new Paddle(80, Y_MAX - 5, 35, 5, ST77XX_BLUE);
+    BrickCollection* bricks = new BrickCollection(BORDER_X_MIN, BORDER_Y_MIN, 20, 10, ST77XX_WHITE);
+    Paddle* paddle = new Paddle(80, Y_MAX - 5, 40, 5, ST77XX_BLUE);
     Ball* ball = new Ball(5, ST77XX_RED);
 
     bool all_destroyed = false;
+    size_t num_strikeouts = 0;
     String victory_message = "You did it! Press Enter.";
     uint32_t level_start_time = 0;
     String level_config = "########-##oooo##-#oo##oo#-########";
@@ -489,9 +503,9 @@ namespace dodobot_breakout
     {
         dodobot_display::tft.setCursor(0, 0);
         dodobot_display::tft.print("bricks: ");
-        dodobot_display::tft.print(bricks.num_shown_bricks());
+        dodobot_display::tft.print(bricks->num_shown_bricks());
         dodobot_display::tft.print(" of ");
-        dodobot_display::tft.print(bricks.get_num_bricks());
+        dodobot_display::tft.print(bricks->get_num_bricks());
         dodobot_display::tft.println("    ");
         dodobot_display::tft.print("time: ");
         if (level_start_time == 0) {
@@ -501,12 +515,18 @@ namespace dodobot_breakout
             float time = (float)(CURRENT_TIME - level_start_time) / 1000.0;
             dodobot_display::tft.print(time);
         }
-        dodobot_display::tft.println("   ");
+        dodobot_display::tft.print("   ");
+
+        dodobot_display::tft.setCursor(80, dodobot_display::tft.getCursorY());
+        dodobot_display::tft.print("outs: ");
+        dodobot_display::tft.print(num_strikeouts);
+
         dodobot_display::tft.drawFastHLine(BORDER_X_MIN, BORDER_Y_MIN - 1, BORDER_X_MAX - BORDER_X_MIN, ST77XX_WHITE);
     }
 
     void win_callback()
     {
+        send_event(BreakoutEvent::WIN_CONDITION);
         update_scoreboard();
         ball->draw();
 
@@ -516,16 +536,16 @@ namespace dodobot_breakout
 
         dodobot_display::tft.setCursor((X_MAX - w) / 2, (Y_MAX - h) / 2);
         dodobot_display::tft.print(victory_message);
-
-        level_start_time = 0;
     }
 
     void enter_event()
     {
         dodobot_display::tft.fillScreen(ST77XX_BLACK);
+        num_strikeouts = 0;
+        level_start_time = 0;
         all_destroyed = false;
         reset_ball_to_paddle();
-        bricks.reset_level();
+        bricks->reset_level();
     }
     void right_event() {
         paddle->set_vx(2.0);
@@ -553,7 +573,9 @@ namespace dodobot_breakout
 
         int result = ball->update();
         if (result == 1) {
+            send_event(BreakoutEvent::BALL_OUT_OF_BOUNDS);
             reset_ball_to_paddle();
+            num_strikeouts++;
         }
         ball->draw();
 
@@ -577,16 +599,19 @@ namespace dodobot_breakout
             }
         }
 
-        bricks.draw();
-        bricks.has_ball_collided(ball);
+        bricks->draw();
+        if (bricks->has_ball_collided(ball)) {
+            send_event(BreakoutEvent::BRICK_COLLIDE);
+        }
 
-        all_destroyed = bricks.num_shown_bricks() == 0;
+        all_destroyed = bricks->num_shown_bricks() == 0;
         if (all_destroyed) {
             win_callback();
         }
 
         if (ball->has_collided(paddle))  {
             // ball->bounce(ball->collision_dir(paddle));
+            send_event(BreakoutEvent::PADDLE_COLLIDE);
             paddle->set_ball_speed(ball);
         }
     }
@@ -594,14 +619,15 @@ namespace dodobot_breakout
     void on_load()
     {
         level_start_time = 0;
+        num_strikeouts = 0;
         all_destroyed = false;
         reset_ball_to_paddle();
-        bricks.create_level(level_config);
+        bricks->create_level(level_config);
     }
 
     void on_unload()
     {
-        bricks.delete_level();
+        bricks->delete_level();
     }
 }
 

@@ -193,6 +193,7 @@ namespace dodobot_linear
 
         set_active(false);
         reset_encoder();
+        dodobot_serial::println_info("Linear ready");
     }
 
 

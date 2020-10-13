@@ -210,6 +210,7 @@ namespace dodobot_chassis
         reset_encoders();
         setup_motors();
         setup_bumpers();
+        dodobot_serial::println_info("Drive motors ready");
     }
 
     void update()

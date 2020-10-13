@@ -54,6 +54,7 @@ namespace dodobot_display
         tft.setRotation(3); // horizontal display
 
         tft.print("Hello!\n");
+        dodobot_serial::println_info("Display ready");
     }
 };
 

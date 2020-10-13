@@ -148,6 +148,8 @@ namespace dodobot_gripper
 
         pinMode(FSR_LEFT_PIN, INPUT);
         pinMode(FSR_RIGHT_PIN, INPUT);
+
+        dodobot_serial::println_info("Gripper ready");
     }
 
     bool read_fsrs()
