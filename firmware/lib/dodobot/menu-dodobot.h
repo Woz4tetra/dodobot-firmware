@@ -8,6 +8,7 @@
 #include "speed-pid-dodobot.h"
 #include "gripper-dodobot.h"
 #include "breakout-dodobot.h"
+#include "latch-circuit-dodobot.h"
 
 using namespace dodobot_display;
 
@@ -24,6 +25,8 @@ namespace dodobot_menu
     unsigned int TOP_BAR_H = 20;
     int SCREEN_MID_W = 0;
     int SCREEN_MID_H = 0;
+
+    uint16_t COLOR_GRAY = tft.color565(128, 128, 128);
 
     String date_string = "00:00:00AM";
     uint32_t prev_date_str_update = 0;
@@ -49,10 +52,12 @@ namespace dodobot_menu
     // Top bar
     //
 
-    uint8_t topbar_icon_x = 10;
-    uint8_t topbar_icon_y = TOP_BAR_H / 2;
-    uint8_t topbar_icon_r = (TOP_BAR_H - 4) / 2;
-    void draw_icon()
+    uint8_t topbar_icon_x = 5;
+    // uint8_t topbar_icon_x = 10;
+    // uint8_t topbar_icon_y = TOP_BAR_H / 2;
+    uint8_t topbar_icon_y = TOP_BAR_H / 4;
+    uint8_t topbar_icon_r = 4;
+    void draw_reporting_icon()
     {
         if (dodobot::robot_state.is_reporting_enabled) {
             tft.fillCircle(topbar_icon_x, topbar_icon_y, topbar_icon_r, ST77XX_GREEN);
@@ -62,8 +67,10 @@ namespace dodobot_menu
         }
     }
 
-    uint8_t topbar_active_icon_x = 30;
-    uint8_t topbar_active_icon_y = topbar_icon_y;
+    uint8_t topbar_active_icon_x = 5;
+    // uint8_t topbar_active_icon_x = 30;
+    // uint8_t topbar_active_icon_y = topbar_icon_y;
+    uint8_t topbar_active_icon_y = 3 * TOP_BAR_H / 4;
     uint8_t topbar_active_icon_r = topbar_icon_r;
     void draw_active_icon()
     {
@@ -80,7 +87,14 @@ namespace dodobot_menu
         int16_t  x1, y1;
         uint16_t w, h;
         tft.getTextBounds(date_string, 0, 0, &x1, &y1, &w, &h);
-        tft.setCursor(SCREEN_MID_W - w / 2, TOP_BAR_H / 2 - h / 2);
+        x1 = SCREEN_MID_W - w / 2;
+        y1 = TOP_BAR_H / 2 - h / 2;
+        if (!dodobot_latch_circuit::state.usb_voltage_state) {
+            tft.fillRect(x1, y1, w, h, ST77XX_BLACK);
+            return;
+        }
+
+        tft.setCursor(x1, y1);
         if (CURRENT_TIME - prev_date_str_update > 1000) {
             tft.setTextColor(ST77XX_YELLOW, ST77XX_BLACK);
             if (CURRENT_TIME - prev_date_str_update > 5000) {
@@ -109,12 +123,44 @@ namespace dodobot_menu
         tft.print(battery_V_menu_str);
     }
 
+    uint8_t topbar_latch_usb_icon_x = 15;
+    uint8_t topbar_latch_usb_icon_y = TOP_BAR_H / 2;
+    uint8_t topbar_latch_usb_icon_r = 4;
+    void draw_latch_debug()
+    {
+        if (dodobot_latch_circuit::state.usb_connected_once) {
+            if (dodobot_latch_circuit::state.usb_voltage_state) {
+                tft.fillCircle(topbar_latch_usb_icon_x, topbar_latch_usb_icon_y, topbar_latch_usb_icon_r, ST77XX_GREEN);
+            }
+            else {
+                tft.fillCircle(topbar_latch_usb_icon_x, topbar_latch_usb_icon_y, topbar_latch_usb_icon_r, ST77XX_YELLOW);
+            }
+        }
+        else {
+            tft.fillCircle(topbar_latch_usb_icon_x, topbar_latch_usb_icon_y, topbar_latch_usb_icon_r, ST77XX_RED);
+        }
+
+        if (dodobot_latch_circuit::state.usb_connected_once &&
+                !dodobot_latch_circuit::state.usb_voltage_state &&
+                dodobot_latch_circuit::state.shutdown_timer != UINT_MAX) {
+            int16_t  x1, y1;
+            uint16_t w, h;
+            float seconds = (float)dodobot_latch_circuit::state.shutdown_timer * 1E-3;
+            tft.getTextBounds(seconds, 0, 0, &x1, &y1, &w, &h);
+            tft.setCursor(SCREEN_MID_W - w / 2, (TOP_BAR_H - h) / 2);
+            tft.print(seconds);
+        }
+    }
+
     void draw_topbar()
     {
         draw_battery();
-        draw_icon();
+
+        draw_reporting_icon();
         draw_active_icon();
+
         draw_datestr();
+        draw_latch_debug();
     }
 
     //

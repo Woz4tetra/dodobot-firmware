@@ -12,8 +12,12 @@ namespace dodobot_latch_circuit
     const int BUTTON_LED_PIN = 14;
     const int USB_SENSE_PIN = 7;
 
+    struct state {
+        bool usb_connected_once;
+        bool usb_voltage_state;
+        uint32_t shutdown_timer;
+    } state;
 
-    bool usb_connected_once = false;
     const uint32_t USB_CHECK_INTERVAL_MS = 100;
     uint32_t usb_check_timer = 0;
 
@@ -23,9 +27,6 @@ namespace dodobot_latch_circuit
     uint32_t POWER_OFF_WARN_THRESHOLD_MS = 2500;
     uint32_t power_off_check_timer = 0;
 
-    const uint32_t SERIAL_MSG_TIMEOUT = 5000;
-    uint32_t serial_msg_timer = 0;
-
     const uint32_t LED_CYCLE_INTERVAL_US = 1000;
     uint32_t led_cycle_timer = 0;
 
@@ -33,15 +34,6 @@ namespace dodobot_latch_circuit
     bool button_state = false;
     bool prev_button_state = false;
     bool is_shutting_down = false;
-
-    void reset_serial_msg_timer() {
-        serial_msg_timer = CURRENT_TIME;
-    }
-
-    bool is_serial_active() {
-        POWER_OFF_THRESHOLD_MS = POWER_OFF_DEFAULT_THRESHOLD_MS;
-        return CURRENT_TIME - serial_msg_timer < SERIAL_MSG_TIMEOUT;
-    }
 
     void unlatch() {
         digitalWrite(UNLATCH_PIN, HIGH);
@@ -51,11 +43,25 @@ namespace dodobot_latch_circuit
         return digitalRead(USB_SENSE_PIN) == HIGH;
     }
 
-    bool is_usb_connected() {
-        if (is_usb_voltage_high() || is_serial_active()) {
+    void init_state()
+    {
+        state.usb_connected_once = false;
+        state.usb_voltage_state = false;
+        state.shutdown_timer = UINT_MAX;
+    }
+
+    void update_state() {
+        state.usb_voltage_state = is_usb_voltage_high();
+    }
+
+    bool is_usb_connected()
+    {
+        if (state.usb_voltage_state) {
             power_off_check_timer = CURRENT_TIME;
+            state.shutdown_timer = UINT_MAX;
         }
         else {
+            state.shutdown_timer = CURRENT_TIME - power_off_check_timer;
             if (CURRENT_TIME - power_off_check_timer > POWER_OFF_WARN_THRESHOLD_MS) {
                 DODOBOT_SERIAL_WRITE_BOTH("unlatch", "u", CURRENT_TIME);
             }
@@ -142,14 +148,17 @@ namespace dodobot_latch_circuit
             return;
         }
         usb_check_timer = CURRENT_TIME;
-        if (usb_connected_once) {
+
+        update_state();
+        if (state.usb_connected_once) {
             if (!is_usb_connected()) {
                 unlatch();
             }
         }
         else {
             if (is_usb_voltage_high()) {
-                usb_connected_once = true;
+                state.usb_connected_once = true;
+                POWER_OFF_THRESHOLD_MS = POWER_OFF_DEFAULT_THRESHOLD_MS;
             }
         }
 

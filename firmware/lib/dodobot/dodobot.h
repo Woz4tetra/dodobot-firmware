@@ -3,6 +3,7 @@
 #define __DODOBOT_H__
 
 #include <Arduino.h>
+#include <limits.h>
 #include "serial-dodobot.h"
 
 #define CURRENT_TIME millis()

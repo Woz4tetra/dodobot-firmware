@@ -34,7 +34,6 @@ void homing_routine()
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)
 {
     // dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
-    dodobot_latch_circuit::reset_serial_msg_timer();
 
     // get_ready
     if (category.equals("?")) {
