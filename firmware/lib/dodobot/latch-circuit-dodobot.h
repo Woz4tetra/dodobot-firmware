@@ -17,10 +17,14 @@ namespace dodobot_latch_circuit
     const uint32_t USB_CHECK_INTERVAL_MS = 100;
     uint32_t usb_check_timer = 0;
 
-    const uint32_t POWER_OFF_THRESHOLD_MS = 3000;
-    const uint32_t POWER_OFF_WARN_THRESHOLD_MS = 2500;
+    const uint32_t POWER_OFF_DEFAULT_THRESHOLD_MS = 3000;
+    const uint32_t POWER_OFF_FIRST_TIME_THRESHOLD_MS = 30000;
+    uint32_t POWER_OFF_THRESHOLD_MS = POWER_OFF_FIRST_TIME_THRESHOLD_MS;
+    uint32_t POWER_OFF_WARN_THRESHOLD_MS = 2500;
     uint32_t power_off_check_timer = 0;
 
+    const uint32_t SERIAL_MSG_TIMEOUT = 5000;
+    uint32_t serial_msg_timer = 0;
 
     const uint32_t LED_CYCLE_INTERVAL_US = 1000;
     uint32_t led_cycle_timer = 0;
@@ -30,6 +34,14 @@ namespace dodobot_latch_circuit
     bool prev_button_state = false;
     bool is_shutting_down = false;
 
+    void reset_serial_msg_timer() {
+        serial_msg_timer = CURRENT_TIME;
+    }
+
+    bool is_serial_active() {
+        POWER_OFF_THRESHOLD_MS = POWER_OFF_DEFAULT_THRESHOLD_MS;
+        return CURRENT_TIME - serial_msg_timer < SERIAL_MSG_TIMEOUT;
+    }
 
     void unlatch() {
         digitalWrite(UNLATCH_PIN, HIGH);
@@ -40,7 +52,7 @@ namespace dodobot_latch_circuit
     }
 
     bool is_usb_connected() {
-        if (is_usb_voltage_high()) {
+        if (is_usb_voltage_high() || is_serial_active()) {
             power_off_check_timer = CURRENT_TIME;
         }
         else {
