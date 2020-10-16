@@ -29,6 +29,10 @@ namespace dodobot_speed_pid
     int motorA_cmd = 0;
     int motorB_cmd = 0;
 
+    double sign(double x) {
+        return (x > 0) - (x < 0);
+    }
+
     class PID {
     private:
         double K_ff;  // feedforward constant. (ticks per s to motor command conversion)
@@ -46,18 +50,21 @@ namespace dodobot_speed_pid
 
         PID(double _deadzone, double _K_ff):
             K_ff(_K_ff),
-            deadzone(_deadzone),
-            target(0.0),
-            error_sum(0.0), prev_error(0.0),
-            feedforward(0.0),
-            prev_setpoint_time(0),
-            current_time(0),
-            prev_update_time(0),
-            dt(0.0),
-            out(0.0),
-            Kp(0.01), Ki(0.0), Kd(0.0)
+            deadzone(_deadzone)
         {
+            target = 0.0;
+            error_sum = 0.0;
+            prev_error = 0.0;
+            feedforward = 0.0;
+            prev_setpoint_time = 0;
+            current_time = 0;
+            prev_update_time = 0;
+            dt = 0.0;
+            out = 0.0;
 
+            Kp = 0.01;
+            Ki = 0.0;
+            Kd = 0.0;
         }
 
         void set_target(double _target) {
