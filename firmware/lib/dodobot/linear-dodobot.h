@@ -107,7 +107,7 @@ namespace dodobot_linear
     int target_velocity = 0;
 
     uint32_t update_timer = 0;
-    const uint32_t UPDATE_DELAY_MS = 10;
+    const uint32_t UPDATE_DELAY_MS = 30;
 
     enum TicPlanningMode planning_mode = TicPlanningMode::Off;  // 0 = off, 1 = position, 2 = velocity
     uint32_t planning_mode_timer = 0;

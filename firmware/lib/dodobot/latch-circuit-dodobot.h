@@ -125,9 +125,12 @@ namespace dodobot_latch_circuit
         }
     }
 
+    void shutdown_callback();
+
     void shutdown() {
         is_shutting_down = true;
-        dodobot::set_motors_active(false);
+        // dodobot::set_motors_active(false);
+        shutdown_callback();
     }
 
     void update()

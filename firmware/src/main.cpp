@@ -24,6 +24,10 @@ void set_active(bool state)
     dodobot_linear::set_active(state);
 }
 
+void dodobot_latch_circuit::shutdown_callback() {
+    set_active(false);
+}
+
 void homing_routine()
 {
     dodobot_chassis::stop_motors();
