@@ -364,7 +364,8 @@ namespace dodobot_menu
         y_offset += ROW_SIZE;
 
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("homed: " + String(dodobot_linear::is_homed) + "       "); y_offset += ROW_SIZE;
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("microstep: " + String(dodobot_linear::microsteps) + "       "); y_offset += ROW_SIZE;
+        // tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("microstep: " + String(dodobot_linear::microsteps) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("limit: " + String(dodobot_linear::is_home_pin_active()) + "       "); y_offset += ROW_SIZE;
     }
 
     //

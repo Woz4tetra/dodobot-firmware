@@ -172,8 +172,6 @@ namespace dodobot_linear
             TIC_SERIAL.setTimeout(serial_timeout);
             // Give the Tic some time to start up.
             delay(20);
-            tic.exitSafeStart();
-            reset_encoder();
             send_event(LinearEvent::ACTIVE_TRUE);
         }
         else {
@@ -310,6 +308,38 @@ namespace dodobot_linear
         return stepper_ticks * STEP_TICKS_TO_LINEAR_MM;
     }
 
+    bool wait_for_homing_pin(bool goal_state, int32_t target_velocity)
+    {
+        uint32_t check_pos_error_timer = CURRENT_TIME;
+        uint32_t timeout_timer = CURRENT_TIME;
+
+        reset_encoder();
+        tic.haltAndSetPosition(0);
+        tic.setTargetVelocity(target_velocity);
+
+        while (is_home_pin_active() != goal_state) {
+            tic.resetCommandTimeout();
+            if (CURRENT_TIME - check_pos_error_timer > 250)
+            {
+                if (has_position_error(tic.getCurrentPosition()))
+                {
+                    dodobot_serial::println_error("Homing routine failed. Position error!");
+                    send_event(LinearEvent::HOMING_FAILED);
+                    tic.haltAndHold();
+                    return false;
+                }
+                check_pos_error_timer = CURRENT_TIME;
+            }
+            if (CURRENT_TIME - timeout_timer > 10000) {   // 10 second timeout
+                dodobot_serial::println_error("Homing routine timed out");
+                send_event(LinearEvent::HOMING_FAILED);
+                tic.haltAndHold();
+                return false;
+            }
+        }
+        return true;
+    }
+
     void home_stepper()
     {
         if (!is_active) {
@@ -322,6 +352,12 @@ namespace dodobot_linear
         }
         dodobot_serial::println_info("Running home sequence.");
         send_event(LinearEvent::HOMING_STARTED);
+
+        if (!is_homed) {
+            // homing routine hasn't been run since setting active to true
+            tic.exitSafeStart();
+            reset_encoder();
+        }
 
         tic.setStepMode(step_mode);
         update_conversions();
@@ -358,42 +394,21 @@ namespace dodobot_linear
         }
 
         // Drive down until the limit switch is found
-        tic.setTargetVelocity(-FAST_HOMING_SPEED);
-        uint32_t timer = CURRENT_TIME;
-        while (!is_home_pin_active()) {
-            tic.resetCommandTimeout();
-            if (CURRENT_TIME - timer > 10000) {   // 10 second timeout
-                dodobot_serial::println_error("Homing routine timed out while waiting for first pass limit switch");
-                send_event(LinearEvent::HOMING_FAILED);
-                return;
-            }
+        if (!wait_for_homing_pin(true, -FAST_HOMING_SPEED)) {
+            return;
         }
         tic.haltAndHold();
         delay(50);
 
         // Move off the homing switch
-        tic.setTargetVelocity(FAST_HOMING_SPEED);
-        timer = CURRENT_TIME;
-        while (is_home_pin_active()) {
-            tic.resetCommandTimeout();
-            if (CURRENT_TIME - timer > 10000) {   // 10 second timeout
-                dodobot_serial::println_error("Homing routine timed out while moving off limit switch");
-                send_event(LinearEvent::HOMING_FAILED);
-                return;
-            }
+        if (!wait_for_homing_pin(false, FAST_HOMING_SPEED)) {
+            return;
         }
-        delay(25);
+        delay(50);
 
         // Move down more slowly to get a more accurate reading
-        tic.setTargetVelocity(-HOMING_SPEED);
-        timer = CURRENT_TIME;
-        while (!is_home_pin_active()) {
-            tic.resetCommandTimeout();
-            if (CURRENT_TIME - timer > 10000) {   // 10 second timeout
-                dodobot_serial::println_error("Homing routine timed out while waiting for second pass limit switch");
-                send_event(LinearEvent::HOMING_FAILED);
-                return;
-            }
+        if (!wait_for_homing_pin(true, -HOMING_SPEED)) {
+            return;
         }
         tic.haltAndSetPosition(HOMING_POS_OFFSET_FULL_STEP * microsteps);
         delay(50);
