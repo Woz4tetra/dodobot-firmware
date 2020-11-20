@@ -33,6 +33,7 @@ void homing_routine()
     dodobot_chassis::stop_motors();
     dodobot_speed_pid::reset_pid();
     dodobot_linear::home_stepper();
+    dodobot_serial::flush_read();
 }
 
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)

@@ -54,6 +54,14 @@ namespace dodobot_serial
             }
             device()->print(packet);
         }
+
+        void flush_read() {
+            uint32_t available = device()->available();
+            for (uint32_t i = 0; i < available; i++) {
+                device()->read();
+            }
+        }
+
         void read() {
             if (!ready()) {
                 return;
@@ -429,6 +437,12 @@ namespace dodobot_serial
         va_end(args);
         data->print_buffer(PRINT_ERROR, false, SERIAL_MSG_BUFFER);
         info->print_buffer(PRINT_ERROR, false, SERIAL_MSG_BUFFER);
+    }
+
+    void flush_read()
+    {
+        data->flush_read();
+        info->flush_read();
     }
 
     void setup_serial()
