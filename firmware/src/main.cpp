@@ -36,13 +36,13 @@ void homing_routine()
     dodobot_serial::flush_read();
 }
 
-void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category, String packet)
+void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 {
-    // dodobot_serial::println_info("category: %s, packet: %s", category.c_str(), packet.c_str());
+    // dodobot_serial::println_info("category: %s", category.c_str());
 
     // get_ready
     if (category.equals("?")) {
-        CHECK_SEGMENT(serial_obj);
+        CHECK_SEGMENT(serial_obj, -1);
         if (serial_obj->get_segment().equals("dodobot")) {
             dodobot_serial::println_info("Received ready signal!");
             DODOBOT_SERIAL_WRITE_BOTH("ready", "us", CURRENT_TIME, ROBOT_NAME);
@@ -54,9 +54,9 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // toggle reporting
     else if (category.equals("[]")) {
-        CHECK_SEGMENT(serial_obj);
-        int reporting_state = serial_obj->get_segment().toInt();
-        // dodobot_serial::println_info("toggle_reporting %d", reporting_state);
+        CHECK_SEGMENT(serial_obj, 4);
+        int reporting_state = serial_obj->segment_as_int32();
+        dodobot_serial::println_info("toggle_reporting %d", reporting_state);
         switch (reporting_state)
         {
             case 0: dodobot::robot_state.is_reporting_enabled = false; break;
@@ -70,8 +70,8 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // toggle motors active
     else if (category.equals("<>")) {
-        CHECK_SEGMENT(serial_obj);
-        int active_state = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj, 4);
+        int active_state = serial_obj->segment_as_int32();
         // dodobot_serial::println_info("toggle_active %d", active_state);
         switch (active_state)
         {
@@ -85,15 +85,15 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // set gripper
     else if (category.equals("grip")) {
-        CHECK_SEGMENT(serial_obj);
-        int gripper_state = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj, 4);
+        int gripper_state = serial_obj->segment_as_int32();
         int grip_threshold = -1;
         int pos_threshold = 0;
         switch (gripper_state)
         {
             case 0:
-                if (serial_obj->next_segment()) {
-                    pos_threshold = serial_obj->get_segment().toInt();
+                if (serial_obj->next_segment(4)) {
+                    pos_threshold = serial_obj->segment_as_int32();
                     dodobot_gripper::open_gripper(pos_threshold);
                 }
                 else {
@@ -101,9 +101,9 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
                 }
                 break;
             case 1:
-                CHECK_SEGMENT(serial_obj);  grip_threshold = serial_obj->get_segment().toInt();
-                if (serial_obj->next_segment()) {
-                    pos_threshold = serial_obj->get_segment().toInt();
+                CHECK_SEGMENT(serial_obj, 4);  grip_threshold = serial_obj->segment_as_int32();
+                if (serial_obj->next_segment(4)) {
+                    pos_threshold = serial_obj->segment_as_int32();
                     dodobot_gripper::close_gripper(grip_threshold, pos_threshold);
                 }
                 else {
@@ -111,7 +111,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
                 }
                 break;
             case 2:
-                CHECK_SEGMENT(serial_obj);  grip_threshold = serial_obj->get_segment().toInt();
+                CHECK_SEGMENT(serial_obj, 4);  grip_threshold = serial_obj->segment_as_int32();
                 dodobot_gripper::toggle_gripper(grip_threshold);
                 break;
             default:
@@ -121,16 +121,16 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // gripper settings
     else if (category.equals("gripcfg")) {
-        CHECK_SEGMENT(serial_obj); int open_pos = serial_obj->get_segment().toInt();
-        CHECK_SEGMENT(serial_obj); int close_pos = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj, 4); int open_pos = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, 4); int close_pos = serial_obj->segment_as_int32();
         dodobot_gripper::set_limits(open_pos, close_pos);
         dodobot_serial::println_info("Setting gripper limits: %d, %d", open_pos, close_pos);
     }
 
     // set tilter
     else if (category.equals("tilt")) {
-        CHECK_SEGMENT(serial_obj);
-        int tilt_state = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj, 4);
+        int tilt_state = serial_obj->segment_as_int32();
         int tilt_pos = 0;
         switch (tilt_state)
         {
@@ -138,7 +138,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
             case 1: dodobot_tilter::tilter_down(); break;
             case 2: dodobot_tilter::tilter_toggle(); break;
             case 3:
-                CHECK_SEGMENT(serial_obj);  tilt_pos = serial_obj->get_segment().toInt();
+                CHECK_SEGMENT(serial_obj, 4);  tilt_pos = serial_obj->segment_as_int32();
                 dodobot_tilter::set_tilter(tilt_pos);
                 break;
             default:
@@ -148,17 +148,17 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // set linear
     else if (category.equals("linear")) {
-        CHECK_SEGMENT(serial_obj);
-        int linear_state = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj, 4);
+        int linear_state = serial_obj->segment_as_int32();
         int linear_value = 0;
         switch (linear_state)
         {
             case 0:
-                CHECK_SEGMENT(serial_obj);  linear_value = serial_obj->get_segment().toInt();
+                CHECK_SEGMENT(serial_obj, 4);  linear_value = serial_obj->segment_as_int32();
                 dodobot_linear::set_position(linear_value);
                 break;
             case 1:
-                CHECK_SEGMENT(serial_obj);  linear_value = serial_obj->get_segment().toInt();
+                CHECK_SEGMENT(serial_obj, 4);  linear_value = serial_obj->segment_as_int32();
                 dodobot_linear::set_velocity(linear_value);
                 break;
             case 2: dodobot_linear::stop(); break;
@@ -171,8 +171,8 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // set linear configuration settings
     else if (category.equals("lincfg")) {
-        CHECK_SEGMENT(serial_obj); int config_type = serial_obj->get_segment().toInt();
-        CHECK_SEGMENT(serial_obj); int value = serial_obj->get_segment().toInt();
+        CHECK_SEGMENT(serial_obj, 4); int config_type = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, 4); int value = serial_obj->segment_as_int32();
 
         switch (config_type) {
             case 0:  dodobot_linear::set_max_speed(value); break;
@@ -187,7 +187,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
         float k_value = 0;
         size_t index = 0;
         for (index = 0; index < dodobot_speed_pid::NUM_PID_KS; index++) {
-            CHECK_SEGMENT_BREAK(serial_obj); k_value = serial_obj->get_segment().toFloat();
+            CHECK_SEGMENT_BREAK(serial_obj, 4); k_value = serial_obj->segment_as_float();
             dodobot_speed_pid::pid_Ks[index] = k_value;
             dodobot_serial::println_info("Set k %d: %.2f", index, k_value);
         }
@@ -201,15 +201,15 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
 
     // set chassis speed
     else if (category.equals("drive")) {
-        CHECK_SEGMENT(serial_obj); float setpointA = serial_obj->get_segment().toFloat();
-        CHECK_SEGMENT(serial_obj); float setpointB = serial_obj->get_segment().toFloat();
+        CHECK_SEGMENT(serial_obj, 4); float setpointA = serial_obj->segment_as_float();
+        CHECK_SEGMENT(serial_obj, 4); float setpointB = serial_obj->segment_as_float();
         dodobot_speed_pid::update_setpointA(setpointA);
         dodobot_speed_pid::update_setpointB(setpointB);
     }
 
     // shutdown signal
     else if (category.equals("shutdown")) {
-        CHECK_SEGMENT(serial_obj);
+        CHECK_SEGMENT(serial_obj, -1);
         if (serial_obj->get_segment().equals("dodobot")) {
             dodobot_serial::println_info("Received shutdown signal!");
             dodobot_latch_circuit::shutdown();
@@ -220,22 +220,22 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category,
     }
 
     else if (category.equals("date")) {
-        CHECK_SEGMENT(serial_obj);
+        CHECK_SEGMENT(serial_obj, -1);
         dodobot_menu::date_string = serial_obj->get_segment();
         dodobot_menu::prev_date_str_update = CURRENT_TIME;
     }
 
     else if (category.equals("network")) {
-        CHECK_SEGMENT(serial_obj); dodobot_menu::network_ip = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj); dodobot_menu::network_netmask = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj); dodobot_menu::network_broadcast = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj); dodobot_menu::network_name = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj); dodobot_menu::network_error = serial_obj->get_segment();
+        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_ip = serial_obj->get_segment();
+        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_netmask = serial_obj->get_segment();
+        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_broadcast = serial_obj->get_segment();
+        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_name = serial_obj->get_segment();
+        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_error = serial_obj->get_segment();
         dodobot_menu::network_str_update = CURRENT_TIME;
     }
 
     else if (category.equals("breakout")) {
-        CHECK_SEGMENT(serial_obj); dodobot_breakout::level_config = serial_obj->get_segment();
+        CHECK_SEGMENT(serial_obj, -1); dodobot_breakout::level_config = serial_obj->get_segment();
     }
 }
 
