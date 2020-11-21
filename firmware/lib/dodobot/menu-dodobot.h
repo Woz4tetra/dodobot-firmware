@@ -1,6 +1,8 @@
 #ifndef __DODOBOT_MENU_H__
 #define __DODOBOT_MENU_H__
 
+#include <JPEGDecoder.h>  // JPEG decoder library
+
 #include "display-dodobot.h"
 #include "chassis-dodobot.h"
 #include "linear-dodobot.h"
@@ -202,7 +204,8 @@ namespace dodobot_menu
         GRIPPER_MENU,
         SHUTDOWN_MENU,
         NONE_MENU,
-        BREAKOUT_MENU
+        BREAKOUT_MENU,
+        IMAGE_MENU
     };
 
     const menu_names MAIN_MENU_ENUM_MAPPING[] PROGMEM = {
@@ -212,6 +215,7 @@ namespace dodobot_menu
         TILTER_MENU,
         GRIPPER_MENU,
         BREAKOUT_MENU,
+        IMAGE_MENU,
         SHUTDOWN_MENU
     };
 
@@ -222,9 +226,10 @@ namespace dodobot_menu
         "Camera Tilter",
         "Gripper",
         "Breakout",
+        "Image",
         "Shutdown/restart"
     };
-    const int MAIN_MENU_ENTRIES_LEN = 7;
+    const int MAIN_MENU_ENTRIES_LEN = 8;
 
     menu_names DISPLAYED_MENU = MAIN_MENU;
     menu_names PREV_DISPLAYED_MENU = NONE_MENU;  // for detecting screen change events
@@ -432,6 +437,133 @@ namespace dodobot_menu
         DISPLAYED_MENU = MAIN_MENU;
     }
 
+    // Image menu
+
+    void jpegInfo()
+    {
+        dodobot_serial::println_info("JPEG image info");
+        dodobot_serial::println_info("  Width      : %d", JpegDec.width);
+        dodobot_serial::println_info("  Height     : %d", JpegDec.height);
+        dodobot_serial::println_info("  Components : %d", JpegDec.comps);
+        dodobot_serial::println_info("  MCU / row  : %d", JpegDec.MCUSPerRow);
+        dodobot_serial::println_info("  MCU / col  : %d", JpegDec.MCUSPerCol);
+        dodobot_serial::println_info("  Scan type  : %d", JpegDec.scanType);
+        dodobot_serial::println_info("  MCU width  : %d", JpegDec.MCUWidth);
+        dodobot_serial::println_info("  MCU height : %d", JpegDec.MCUHeight);
+    }
+
+    // const uint8_t* image_array = static_cast<uint8_t*>(malloc(8096));
+    uint8_t* image_array = new uint8_t[8096];
+    uint32_t image_array_size = 0;
+    void load_image(char* img_bytes, uint32_t array_size)
+    {
+        dodobot_serial::println_info("Image len: %d", array_size);
+        memcpy(image_array, img_bytes, array_size);
+        image_array_size = array_size;
+    }
+
+    #define minimum(a,b)     (((a) < (b)) ? (a) : (b))
+    void renderJPEG(int xpos, int ypos)
+    {
+        JpegDec.decodeArray(image_array, image_array_size);
+        jpegInfo();
+
+        // retrieve infomration about the image
+        uint16_t *pImg;
+        uint16_t mcu_w = JpegDec.MCUWidth;
+        uint16_t mcu_h = JpegDec.MCUHeight;
+        uint32_t max_x = JpegDec.width;
+        uint32_t max_y = JpegDec.height;
+
+        // Jpeg images are drawn as a set of image block (tiles) called Minimum Coding Units (MCUs)
+        // Typically these MCUs are 16x16 pixel blocks
+        // Determine the width and height of the right and bottom edge image blocks
+        uint32_t min_w = minimum(mcu_w, max_x % mcu_w);
+        uint32_t min_h = minimum(mcu_h, max_y % mcu_h);
+
+        // save the current image block size
+        uint32_t win_w = mcu_w;
+        uint32_t win_h = mcu_h;
+
+        uint32_t screen_w = tft.width();
+        uint32_t screen_h = tft.height();
+
+        // record the current time so we can measure how long it takes to draw an image
+        uint32_t drawTime = millis();
+
+        // save the coordinate of the right and bottom edges to assist image cropping
+        // to the screen size
+        max_x += xpos;
+        max_y += ypos;
+
+        // read each MCU block until there are no more
+        tft.startWrite();
+        // tft.setAddrWindow(xpos, ypos, minimum(max_x, screen_w), minimum(max_y, screen_h));
+        while ( JpegDec.read()) {
+
+            // save a pointer to the image block
+            pImg = JpegDec.pImage;
+
+            // calculate where the image block should be drawn on the screen
+            unsigned int mcu_x = JpegDec.MCUx * mcu_w + xpos;
+            unsigned int mcu_y = JpegDec.MCUy * mcu_h + ypos;
+
+            // check if the image block size needs to be changed for the right and bottom edges
+            if (mcu_x + mcu_w <= max_x) { win_w = mcu_w; }
+            else { win_w = min_w; }
+
+            if (mcu_y + mcu_h <= max_y) { win_h = mcu_h; }
+            else { win_h = min_h; }
+
+            // calculate how many pixels must be drawn
+            uint32_t mcu_pixels = win_w * win_h;
+
+            // draw image block if it will fit on the screen
+            if ( ( mcu_x + win_w) <= screen_w && ( mcu_y + win_h) <= screen_h) {
+                // open a window onto the screen to paint the pixels into
+                // tft.startWrite();
+                tft.setAddrWindow(mcu_x, mcu_y, win_w, win_h);
+                // push all the image block pixels to the screen
+                while (mcu_pixels--) {
+                    tft.writeColor(*pImg++, 1); // Send to TFT 16 bits at a time
+                }
+                // tft.endWrite();
+            }
+
+            // stop drawing blocks if the bottom of the screen has been reached
+            // the abort function will close the file
+            else if ( ( mcu_y + win_h) >= screen_h) {
+                JpegDec.abort();
+            }
+
+        }
+        tft.endWrite();
+
+        // calculate how long it took to draw the image
+        drawTime = millis() - drawTime; // Calculate the time it took
+
+        // print the results to the serial port
+        dodobot_serial::println_info("Total render time was: %d ms", drawTime);
+    }
+
+    void load_image_event()
+    {
+        if (DISPLAYED_MENU != IMAGE_MENU) {
+            return;
+        }
+        renderJPEG(0, TOP_BAR_H);
+    }
+
+    void draw_image_menu()
+    {
+
+    }
+
+    void draw_image_on_load()
+    {
+        renderJPEG(0, TOP_BAR_H);
+    }
+
     //
     // Menu events
     //
@@ -525,6 +657,8 @@ namespace dodobot_menu
                 MENU_UPDATE_DELAY_MS = dodobot_breakout::UPDATE_DELAY_MS;
                 dodobot_breakout::on_load();
                 break;
+            case IMAGE_MENU:
+                draw_image_on_load();
             default: break;
             // add new menu entry callbacks (if needed)
         }
@@ -550,6 +684,7 @@ namespace dodobot_menu
             case GRIPPER_MENU: draw_gripper_menu(); break;
             case BREAKOUT_MENU: dodobot_breakout::draw(); break;
             case SHUTDOWN_MENU: draw_shutdown_menu(); break;
+            case IMAGE_MENU: draw_image_menu(); break;
             default: break;
             // add new menu entry callbacks
         }
@@ -562,6 +697,7 @@ namespace dodobot_menu
             case LINEAR_MENU:
             case TILTER_MENU:
             case GRIPPER_MENU:
+            case IMAGE_MENU:
             case SHUTDOWN_MENU:  draw_topbar();
 
             case BREAKOUT_MENU:

@@ -216,6 +216,9 @@ namespace dodobot_serial
         String get_segment() {
             return String(segment);
         }
+        char* get_segment_raw() {
+            return segment;
+        }
         int get_segment_num() {
             return current_segment_num;
         }
@@ -282,7 +285,7 @@ namespace dodobot_serial
         uint32_t start_wait_time;
 
         void init_variables() {
-            segment = new char[0x100];
+            segment = new char[0x4000];
 
             read_packet_num = 0;
             write_packet_num = 0;
@@ -291,10 +294,10 @@ namespace dodobot_serial
             current_segment_num = -1;
             prev_ready_state = false;
 
-            recv_char_buffer = new char[0x800];
+            recv_char_buffer = new char[0x4000];
             recv_char_index = 0;
 
-            write_char_buffer = new char[0x800];
+            write_char_buffer = new char[0x4000];
             write_char_index = 0;
 
             start_wait_time = 0;
@@ -336,6 +339,15 @@ namespace dodobot_serial
                     write_char_buffer[write_char_index++] = uint16_union.byte[0];
                     sprintf(write_char_buffer + write_char_index, "%s", s);
                     write_char_index += strlen(s);
+                }
+                else if (*formats == 'x') {
+                    char *s = va_arg(args, char*);
+                    uint16_union.byte[1] = s[0];
+                    uint16_union.byte[0] = s[1];
+                    for (size_t i = 0; i < uint16_union.integer; i++) {
+                        write_char_buffer[write_char_index++] = s[2 + i];
+                    }
+                    write_char_index += 2 + uint16_union.integer;
                 }
                 else if (*formats == 'f') {
                     float_union.floating_point = (float)va_arg(args, double);

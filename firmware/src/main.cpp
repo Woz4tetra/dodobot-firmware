@@ -237,6 +237,14 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
     else if (category.equals("breakout")) {
         CHECK_SEGMENT(serial_obj, -1); dodobot_breakout::level_config = serial_obj->get_segment();
     }
+
+    else if (category.equals("img")) {
+        CHECK_SEGMENT(serial_obj, 2); uint16_t img_len = serial_obj->segment_as_uint16();
+        CHECK_SEGMENT(serial_obj, img_len); char* img_bytes = serial_obj->get_segment_raw();
+        dodobot_serial::println_info("Received image! len: %d", img_len);
+        dodobot_menu::load_image(img_bytes, (uint32_t)img_len);
+        dodobot_menu::load_image_event();
+    }
 }
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
