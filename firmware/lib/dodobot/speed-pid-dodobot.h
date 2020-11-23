@@ -35,6 +35,7 @@ namespace dodobot_speed_pid
 
     class PID {
     private:
+        String name;
         double K_ff;  // feedforward constant. (ticks per s to motor command conversion)
         double deadzone;
         double target;
@@ -44,13 +45,15 @@ namespace dodobot_speed_pid
         uint32_t current_time, prev_update_time;
         double dt;
         double out;
+        bool is_timed_out;
 
     public:
         double Kp, Ki, Kd;
 
-        PID(double _deadzone, double _K_ff):
+        PID(String _name, double _deadzone, double _K_ff):
             K_ff(_K_ff),
-            deadzone(_deadzone)
+            deadzone(_deadzone),
+            name(_name)
         {
             target = 0.0;
             error_sum = 0.0;
@@ -61,10 +64,15 @@ namespace dodobot_speed_pid
             prev_update_time = 0;
             dt = 0.0;
             out = 0.0;
+            is_timed_out = false;
 
             Kp = 0.01;
             Ki = 0.0;
             Kd = 0.0;
+        }
+
+        bool timed_out() {
+            return is_timed_out;
         }
 
         void set_target(double _target) {
@@ -72,6 +80,7 @@ namespace dodobot_speed_pid
             target = _target;
             prev_setpoint_time = CURRENT_TIME;
             prev_update_time = micros();
+            is_timed_out = false;
         }
 
         double get_target() {
@@ -96,12 +105,11 @@ namespace dodobot_speed_pid
 
         int compute(double measurement)
         {
-            // if (target != 0.0) {
-            //     if (CURRENT_TIME - prev_setpoint_time > PID_COMMAND_TIMEOUT_MS) {
-            //         dodobot_serial::println_info("PID setpoint timed out");
-            //         set_target(0.0);
-            //     }
-            // }
+            if (!is_timed_out && CURRENT_TIME - prev_setpoint_time > PID_COMMAND_TIMEOUT_MS) {
+                set_target(0.0);
+                is_timed_out = true;
+                dodobot_serial::println_info("PID '%s' setpoint timed out", name.c_str());
+            }
 
             if (micros() - prev_update_time == 0) {
                 return out;
@@ -137,8 +145,8 @@ namespace dodobot_speed_pid
         }
     };
 
-    PID motorA_pid(min_tps, tps_to_cmd);
-    PID motorB_pid(min_tps, tps_to_cmd);
+    PID motorA_pid("A", min_tps, tps_to_cmd);
+    PID motorB_pid("B", min_tps, tps_to_cmd);
 
     void set_Ks()
     {
@@ -204,7 +212,10 @@ namespace dodobot_speed_pid
 
         motorA_cmd = motorA_pid.compute(dodobot_chassis::enc_speedA);
         motorB_cmd = motorB_pid.compute(dodobot_chassis::enc_speedB);
-        dodobot_chassis::set_motors(motorA_cmd, motorB_cmd);
+
+        if (!motorA_pid.timed_out() && !motorB_pid.timed_out()) {
+            dodobot_chassis::set_motors(motorA_cmd, motorB_cmd);
+        }
     }
 
     void set_speed_pid(bool enabled) {

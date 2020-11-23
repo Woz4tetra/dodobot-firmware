@@ -573,7 +573,8 @@ namespace dodobot_menu
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX += 1; break;
             case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position - 625 * dodobot_linear::microsteps); break;
-            case DRIVE_MENU: drive_robot_forward(-3000.0); break;
+            // case DRIVE_MENU: drive_robot_forward(-3000.0); break;
+            case DRIVE_MENU: dodobot_chassis::set_motors(-200, -200); break;
             case GRIPPER_MENU: dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 10); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX += 1; break;
             default: break;
@@ -585,7 +586,8 @@ namespace dodobot_menu
         switch (DISPLAYED_MENU) {
             case MAIN_MENU: MAIN_MENU_SELECT_INDEX -= 1; break;
             case LINEAR_MENU: dodobot_linear::set_position(dodobot_linear::target_position + 625 * dodobot_linear::microsteps); break;
-            case DRIVE_MENU: drive_robot_forward(3000.0); break;
+            // case DRIVE_MENU: drive_robot_forward(3000.0); break;
+            case DRIVE_MENU: dodobot_chassis::set_motors(200, 200); break;
             case GRIPPER_MENU: dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 10); break;
             case SHUTDOWN_MENU: SHUTDOWN_MENU_SELECT_INDEX -= 1; break;
             default: break;
@@ -595,7 +597,8 @@ namespace dodobot_menu
     void left_menu_event() {
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", "<");
         switch (DISPLAYED_MENU) {
-            case DRIVE_MENU: rotate_robot(-2000.0); break;
+            // case DRIVE_MENU: rotate_robot(-2000.0); break;
+            case DRIVE_MENU: dodobot_chassis::set_motors(-200, 200); break;
             case GRIPPER_MENU: dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 1); break;
             case BREAKOUT_MENU: dodobot_breakout::left_event(); break;
             default: break;
@@ -606,7 +609,8 @@ namespace dodobot_menu
     void right_menu_event() {
         DODOBOT_SERIAL_WRITE_BOTH("menu", "s", ">");
         switch (DISPLAYED_MENU) {
-            case DRIVE_MENU: rotate_robot(2000.0); break;
+            // case DRIVE_MENU: rotate_robot(2000.0); break;
+            case DRIVE_MENU: dodobot_chassis::set_motors(200, -200); break;
             case GRIPPER_MENU: dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 1); break;
             case BREAKOUT_MENU: dodobot_breakout::right_event(); break;
             default: break;
