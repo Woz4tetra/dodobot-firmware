@@ -339,8 +339,8 @@ namespace dodobot_menu
         tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("m A: " + String((int)dodobot_chassis::enc_speedA) + "       ");
         tft.setCursor(BORDER_OFFSET_W + drive_column_offset, y_offset); tft.println("B: " + String((int)dodobot_chassis::enc_speedB) + "       "); y_offset += ROW_SIZE;
 
-        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("1: " + String(dodobot_chassis::is_bump1_active()) + "       ");
-        tft.setCursor(BORDER_OFFSET_W + drive_column_offset, y_offset); tft.println("2: " + String(dodobot_chassis::is_bump2_active()) + "       "); y_offset += ROW_SIZE;
+        tft.setCursor(BORDER_OFFSET_W, y_offset); tft.println("L: " + String(dodobot_chassis::is_bump2_active()) + "       ");
+        tft.setCursor(BORDER_OFFSET_W + drive_column_offset, y_offset); tft.println("R: " + String(dodobot_chassis::is_bump1_active()) + "       "); y_offset += ROW_SIZE;
     }
 
     //
