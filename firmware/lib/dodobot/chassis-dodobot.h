@@ -49,20 +49,47 @@ namespace dodobot_chassis
     double speed_smooth_kA = 0.9;
     double speed_smooth_kB = 0.9;
 
+    bool bump1_state = false;
+    bool bump2_state = false;
+
     // Bumpers
-    void setup_bumpers()
-    {
-        pinMode(BUMP1_PIN, INPUT_PULLUP);
-        pinMode(BUMP2_PIN, INPUT_PULLUP);
-    }
-
-
     bool is_bump1_active() {
         return digitalRead(BUMP1_PIN) == LOW;
     }
 
     bool is_bump2_active() {
         return digitalRead(BUMP2_PIN) == LOW;
+    }
+
+    void setup_bumpers()
+    {
+        pinMode(BUMP1_PIN, INPUT_PULLUP);
+        pinMode(BUMP2_PIN, INPUT_PULLUP);
+        bump1_state = is_bump1_active();
+        bump2_state = is_bump2_active();
+    }
+
+    bool bump1_changed()
+    {
+        bool new_state = is_bump1_active();
+        if (bump1_state != new_state) {
+            bump1_state = new_state;
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    bool bump2_changed()
+    {
+        bool new_state = is_bump2_active();
+        if (bump2_state != new_state) {
+            bump2_state = new_state;
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     // Speed check functions
@@ -217,6 +244,9 @@ namespace dodobot_chassis
     {
         if (read_encoders()) {
             report_encoders();
+        }
+        if (bump1_changed() || bump2_changed()) {
+            dodobot_serial::data->write("bump", "udd", CURRENT_TIME, is_bump1_active(), is_bump2_active());
         }
         check_motor_timeout();
     }

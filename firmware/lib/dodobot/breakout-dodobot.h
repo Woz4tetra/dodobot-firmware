@@ -569,6 +569,12 @@ namespace dodobot_breakout
         if (all_destroyed) {
             return;
         }
+        if (dodobot_chassis::is_bump1_active()) {
+            right_event();
+        }
+        if (dodobot_chassis::is_bump2_active()) {
+            left_event();
+        }
         update_scoreboard();
 
         int result = ball->update();
