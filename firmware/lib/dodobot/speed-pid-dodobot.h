@@ -51,9 +51,9 @@ namespace dodobot_speed_pid
         double Kp, Ki, Kd;
 
         PID(String _name, double _deadzone, double _K_ff):
+            name(_name),
             K_ff(_K_ff),
-            deadzone(_deadzone),
-            name(_name)
+            deadzone(_deadzone)
         {
             target = 0.0;
             error_sum = 0.0;

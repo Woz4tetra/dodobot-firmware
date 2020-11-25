@@ -246,7 +246,8 @@ namespace dodobot_chassis
             report_encoders();
         }
         if (bump1_changed() || bump2_changed()) {
-            dodobot_serial::data->write("bump", "udd", CURRENT_TIME, is_bump1_active(), is_bump2_active());
+            // dodobot_serial::data->write("bump", "udd", CURRENT_TIME, is_bump1_active(), is_bump2_active());
+            DODOBOT_SERIAL_WRITE_BOTH("bump", "udd", CURRENT_TIME, is_bump1_active(), is_bump2_active());
         }
         check_motor_timeout();
     }
