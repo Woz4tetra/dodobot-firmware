@@ -51,6 +51,11 @@ namespace dodobot_chassis
 
     bool bump1_state = false;
     bool bump2_state = false;
+    bool debounce_prev_bump1_state = false;
+    bool debounce_prev_bump2_state = false;
+    uint32_t last_debounce_time_1 = 0;
+    uint32_t last_debounce_time_2 = 0;
+    uint32_t debounce_delay = 25;
 
     // Bumpers
     bool is_bump1_active() {
@@ -72,24 +77,36 @@ namespace dodobot_chassis
     bool bump1_changed()
     {
         bool new_state = is_bump1_active();
-        if (bump1_state != new_state) {
-            bump1_state = new_state;
-            return true;
+        if (debounce_prev_bump1_state != new_state) {
+            last_debounce_time_1 = CURRENT_TIME;
         }
-        else {
-            return false;
+        debounce_prev_bump1_state = new_state;
+        if (CURRENT_TIME - last_debounce_time_1 > debounce_delay)
+        {
+            if (bump1_state != new_state)
+            {
+                bump1_state = new_state;
+                return true;
+            }
         }
+        return false;
     }
     bool bump2_changed()
     {
         bool new_state = is_bump2_active();
-        if (bump2_state != new_state) {
-            bump2_state = new_state;
-            return true;
+        if (debounce_prev_bump2_state != new_state) {
+            last_debounce_time_2 = CURRENT_TIME;
         }
-        else {
-            return false;
+        debounce_prev_bump2_state = new_state;
+        if (CURRENT_TIME - last_debounce_time_2 > debounce_delay)
+        {
+            if (bump2_state != new_state)
+            {
+                bump2_state = new_state;
+                return true;
+            }
         }
+        return false;
     }
 
     // Speed check functions
@@ -99,7 +116,8 @@ namespace dodobot_chassis
     }
 
     bool is_obstacle_in_back() {
-        return is_bump1_active() || is_bump2_active();
+        // return is_bump1_active() || is_bump2_active();
+        return bump1_state || bump2_state;
     }
 
     bool is_moving() {
@@ -247,7 +265,7 @@ namespace dodobot_chassis
         }
         if (bump1_changed() || bump2_changed()) {
             // dodobot_serial::data->write("bump", "udd", CURRENT_TIME, is_bump1_active(), is_bump2_active());
-            DODOBOT_SERIAL_WRITE_BOTH("bump", "udd", CURRENT_TIME, is_bump1_active(), is_bump2_active());
+            DODOBOT_SERIAL_WRITE_BOTH("bump", "udd", CURRENT_TIME, bump1_state, bump2_state);
         }
         check_motor_timeout();
     }
