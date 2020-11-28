@@ -71,7 +71,7 @@ namespace dodobot_linear
 
     const uint32_t FAST_HOMING_SPEED_FULL_STEP = 31250000;
     const uint32_t HOMING_SPEED_FULL_STEP = 3125000;
-    // const uint32_t HOMING_SPEED_FULL_STEP = 50000000;
+    const uint32_t HOMING_ACCEL_FULL_STEP = 1250000;
 
     uint32_t STEPPER_ACCEL_FULL_STEP = 1250000;
     uint32_t STEPPER_DECEL_FULL_STEP = 1250000;
@@ -86,6 +86,8 @@ namespace dodobot_linear
     uint32_t MAX_SPEED = 1;
     uint32_t FAST_HOMING_SPEED = 1;
     uint32_t HOMING_SPEED = 1;
+    uint32_t HOMING_ACCEL = 1;
+
     int POSITION_BUFFER = 1;
     int ENCODER_POSITION_ERROR = 1;
     uint32_t STEPPER_ACCEL = 1;
@@ -285,6 +287,7 @@ namespace dodobot_linear
         FAST_HOMING_SPEED = FAST_HOMING_SPEED_FULL_STEP * microsteps;
         STEPPER_ACCEL = STEPPER_ACCEL_FULL_STEP * microsteps;
         STEPPER_DECEL = STEPPER_DECEL_FULL_STEP * microsteps;
+        HOMING_ACCEL = HOMING_ACCEL_FULL_STEP * microsteps;
 
         POSITION_BUFFER = POSITION_BUFFER_FULL_STEP * microsteps;
         ENCODER_POSITION_ERROR = ENCODER_POSITION_ERROR_FULL_STEP * microsteps;
@@ -364,8 +367,7 @@ namespace dodobot_linear
         dodobot_serial::println_info("Step mode set to %d", microsteps);
 
         tic.setMaxSpeed(FAST_HOMING_SPEED);
-        tic.setMaxAccel(STEPPER_ACCEL);
-        tic.setMaxDecel(STEPPER_DECEL);
+        tic.setMaxAccel(HOMING_ACCEL);
         dodobot_serial::println_info("Homing speed: %d, accel: %d, decel: %d", FAST_HOMING_SPEED, STEPPER_ACCEL, STEPPER_DECEL);
         if (check_errors()) {
             dodobot_serial::println_error("Can't home stepper. Stepper is errored after setting motion params.");
@@ -421,6 +423,8 @@ namespace dodobot_linear
         enc_as_step_ticks();  // initialize encoder variables
 
         tic.setMaxSpeed(MAX_SPEED);
+        tic.setMaxAccel(STEPPER_ACCEL);
+        tic.setMaxDecel(STEPPER_DECEL);
         dodobot_serial::println_info("Max speed: %d", MAX_SPEED);
         is_homed = true;
         target_position = 0;
