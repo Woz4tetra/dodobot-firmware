@@ -575,8 +575,8 @@ namespace dodobot_serial
 
     void setup_serial()
     {
-        DATA_SERIAL.begin(115200);
-        INFO_SERIAL.begin(115200);
+        DATA_SERIAL.begin(1000000);
+        INFO_SERIAL.begin(1000000);
 
         // DATA_SERIAL.setTimeout(1000);
         // INFO_SERIAL.setTimeout(1000);
