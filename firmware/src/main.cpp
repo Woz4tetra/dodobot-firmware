@@ -13,6 +13,7 @@
 #include "menu-dodobot.h"
 #include "breakout-dodobot.h"
 #include "ui-dodobot.h"
+#include "sd-dodobot.h"
 
 
 void set_active(bool state)
@@ -338,7 +339,10 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             // dodobot_speed_pid::update_setpointA(3000);
             // dodobot_speed_pid::update_setpointB(-3000);
             break;  // 6
-        case 0x18E7: dodobot_serial::println_info("IR: 7"); break;  // 7
+        case 0x18E7:
+            dodobot_serial::println_info("IR: 7");
+            dodobot_sd::list_all_files();
+            break;  // 7
         case 0x9867:
             dodobot_serial::println_info("IR: 8");
             // dodobot_speed_pid::update_setpointA(-3000);
@@ -370,6 +374,7 @@ void setup()
     dodobot_chassis::setup_chassis();  tft.print("Drive motors ready\n");
     dodobot_speed_pid::setup_pid();  tft.print("Speed PID ready\n");
     dodobot_latch_circuit::setup_latch();  tft.print("Latch ready\n");
+    dodobot_sd::setup();  tft.print("SD card ready\n");
     dodobot_menu::init_menus();
     tft.print("Dodobot is ready to go!\n");
     dodobot_serial::println_info("Dodobot is ready to go!");
