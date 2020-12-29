@@ -64,6 +64,14 @@ namespace dodobot_serial
             return 0;
         }
 
+        uint32_t get_write_packet_num() {
+            return write_packet_num;
+        }
+
+        uint32_t get_read_packet_num() {
+            return read_packet_num;
+        }
+
         void write(String name, const char *formats, ...) {
             va_list args;
             va_start(args, formats);
@@ -417,7 +425,7 @@ namespace dodobot_serial
 
             if (calc_checksum != recv_checksum) {
                 // checksum failed
-                write("txrx", "dds", read_packet_num, 4, recv_char_buffer);  // error 4: checksums don't match
+                write("txrx", "dd", read_packet_num, 4);  // error 4: checksums don't match
                 read_packet_num++;
                 return;
             }
@@ -433,13 +441,13 @@ namespace dodobot_serial
             if (recv_packet_num != read_packet_num) {
                 // this is considered a warning since it isn't critical for packet
                 // numbers to be in sync
-                write("txrx", "dds", read_packet_num, 6, recv_char_buffer);  // error 6: packet counts not synchronized
+                write("txrx", "dd", read_packet_num, 6);  // error 6: packet counts not synchronized
                 read_packet_num = recv_packet_num;
             }
 
             // find category segment
             if (!next_segment()) {
-                write("txrx", "dds", read_packet_num, 7, recv_char_buffer);  // error 7: failed to find category segment
+                write("txrx", "dd", read_packet_num, 7);  // error 7: failed to find category segment
                 read_packet_num++;
                 return;
             }

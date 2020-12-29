@@ -463,9 +463,9 @@ namespace dodobot_menu
             dodobot_serial::println_error("Loaded image is larger than max size: %d > %d", array_offset + array_size, image_array_max_len);
             return false;
         }
-        dodobot_serial::println_info("Image len: %d", array_size);
         memcpy(image_array + array_offset, img_bytes, array_size);
         image_array_size = array_offset + array_size;
+        dodobot_serial::println_info("Image len: %d", image_array_size);
         return true;
     }
 

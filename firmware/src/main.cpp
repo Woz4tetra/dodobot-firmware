@@ -39,7 +39,7 @@ void homing_routine()
 
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 {
-    // dodobot_serial::println_info("category: %s", category.c_str());
+    // dodobot_serial::println_info("category: %s, packet #%d", category.c_str(), (int)serial_obj->get_read_packet_num());
 
     // get_ready
     if (category.equals("?")) {
@@ -249,9 +249,12 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
             dodobot_serial::println_error("Received segments out of order! %d - %d != 1", segment_index, dodobot_menu::prev_segment_index);
             return;
         }
+        if (segment_index == 0) {
+            dodobot_menu::image_array_size = 0;
+        }
         dodobot_menu::prev_segment_index = segment_index;
 
-        dodobot_serial::println_info("Received image. Segment %d index. Total len %d. Segment len: %d", segment_index, num_segments, img_len);
+        dodobot_serial::println_info("Received image. Segment %d of %d. Segment len: %d", segment_index + 1, num_segments, img_len);
         if (!dodobot_menu::load_image(img_bytes, (uint32_t)img_len, dodobot_menu::image_array_size)) {
             return;
         }
