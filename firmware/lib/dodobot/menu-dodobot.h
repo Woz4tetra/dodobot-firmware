@@ -452,14 +452,21 @@ namespace dodobot_menu
         dodobot_serial::println_info("  MCU height : %d", JpegDec.MCUHeight);
     }
 
-    // const uint8_t* image_array = static_cast<uint8_t*>(malloc(8096));
-    uint8_t* image_array = new uint8_t[8096];
+    uint32_t image_array_max_len = 0x10000;
+    // uint32_t image_array_max_len = 8096;
+    uint8_t* image_array = new uint8_t[image_array_max_len];
     uint32_t image_array_size = 0;
-    void load_image(char* img_bytes, uint32_t array_size)
+    int32_t prev_segment_index = 0;
+    bool load_image(char* img_bytes, uint32_t array_size, uint32_t array_offset = 0)
     {
+        if (array_offset + array_size > image_array_max_len) {
+            dodobot_serial::println_error("Loaded image is larger than max size: %d > %d", array_offset + array_size, image_array_max_len);
+            return false;
+        }
         dodobot_serial::println_info("Image len: %d", array_size);
-        memcpy(image_array, img_bytes, array_size);
-        image_array_size = array_size;
+        memcpy(image_array + array_offset, img_bytes, array_size);
+        image_array_size = array_offset + array_size;
+        return true;
     }
 
     #define minimum(a,b)     (((a) < (b)) ? (a) : (b))

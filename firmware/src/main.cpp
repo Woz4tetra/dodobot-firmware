@@ -12,6 +12,7 @@
 #include "latch-circuit-dodobot.h"
 #include "menu-dodobot.h"
 #include "breakout-dodobot.h"
+#include "ui-dodobot.h"
 
 
 void set_active(bool state)
@@ -239,11 +240,24 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
     }
 
     else if (category.equals("img")) {
+        CHECK_SEGMENT(serial_obj, 4); int32_t segment_index = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, 4); int32_t num_segments = serial_obj->segment_as_int32();
         CHECK_SEGMENT(serial_obj, 2); uint16_t img_len = serial_obj->segment_as_uint16();
         CHECK_SEGMENT(serial_obj, img_len); char* img_bytes = serial_obj->get_segment_raw();
-        dodobot_serial::println_info("Received image! len: %d", img_len);
-        dodobot_menu::load_image(img_bytes, (uint32_t)img_len);
-        dodobot_menu::load_image_event();
+
+        if (segment_index != 0 && segment_index - dodobot_menu::prev_segment_index != 1) {
+            dodobot_serial::println_error("Received segments out of order! %d - %d != 1", segment_index, dodobot_menu::prev_segment_index);
+            return;
+        }
+        dodobot_menu::prev_segment_index = segment_index;
+
+        dodobot_serial::println_info("Received image. Segment %d index. Total len %d. Segment len: %d", segment_index, num_segments, img_len);
+        if (!dodobot_menu::load_image(img_bytes, (uint32_t)img_len, dodobot_menu::image_array_size)) {
+            return;
+        }
+        if (segment_index == num_segments - 1) {
+            dodobot_menu::load_image_event();
+        }
     }
 }
 
