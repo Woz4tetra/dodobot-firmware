@@ -12,10 +12,11 @@ char SERIAL_PACKET_HEADER_BUFFER[4];
 #define PACKET_START_1 '\x34'
 #define PACKET_STOP '\n'
 #define PACKET_STOP_TIMEOUT 500
+#define MAX_PACKET_LEN  0x1020  // Large packet segment size: 0x1000 + extras
 
 #define CHECK_SEGMENT(__SERIAL_OBJ__, PARAM)  if (!__SERIAL_OBJ__->next_segment(PARAM)) {  println_error("Not enough segments supplied for #%d", __SERIAL_OBJ__->get_segment_num());  return;  }
 #define CHECK_SEGMENT_BREAK(__SERIAL_OBJ__, PARAM)  if (!__SERIAL_OBJ__->next_segment(PARAM)) {  println_error("Not enough segments supplied for #%d", __SERIAL_OBJ__->get_segment_num());  break;  }
-
+#define CHECK_SEGMENT_FLAG(__SERIAL_OBJ__, PARAM)  if (!__SERIAL_OBJ__->next_segment(PARAM)) {  println_error("Not enough segments supplied for #%d", __SERIAL_OBJ__->get_segment_num());  return false;  }
 
 #define DODOBOT_SERIAL_WRITE_BOTH(...)  dodobot_serial::data->write(__VA_ARGS__);  dodobot_serial::info->write(__VA_ARGS__);
 
@@ -293,7 +294,7 @@ namespace dodobot_serial
         uint32_t start_wait_time;
 
         void init_variables() {
-            segment = new char[0x4000];
+            segment = new char[MAX_PACKET_LEN];
 
             read_packet_num = 0;
             write_packet_num = 0;
@@ -302,10 +303,10 @@ namespace dodobot_serial
             current_segment_num = -1;
             prev_ready_state = false;
 
-            recv_char_buffer = new char[0x4000];
+            recv_char_buffer = new char[MAX_PACKET_LEN];
             recv_char_index = 0;
 
-            write_char_buffer = new char[0x4000];
+            write_char_buffer = new char[MAX_PACKET_LEN];
             write_char_index = 0;
 
             start_wait_time = 0;
@@ -579,6 +580,20 @@ namespace dodobot_serial
     {
         data->flush_read();
         info->flush_read();
+    }
+
+    bool parse_large(DodobotSerial* serial_obj, int32_t& segment_index, int32_t& num_segments, uint16_t& length, int32_t prev_segment_index, char** bytes)
+    {
+        CHECK_SEGMENT_FLAG(serial_obj, 4); segment_index = serial_obj->segment_as_int32();
+        CHECK_SEGMENT_FLAG(serial_obj, 4); num_segments = serial_obj->segment_as_int32();
+        CHECK_SEGMENT_FLAG(serial_obj, 2); length = serial_obj->segment_as_uint16();
+        CHECK_SEGMENT_FLAG(serial_obj, length); *bytes = serial_obj->get_segment_raw();
+
+        if (segment_index != 0 && segment_index - prev_segment_index != 1) {
+            dodobot_serial::println_error("Received segments out of order! %d - %d != 1", segment_index, prev_segment_index);
+            return false;
+        }
+        return true;
     }
 
     void setup_serial()

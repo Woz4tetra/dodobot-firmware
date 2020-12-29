@@ -69,6 +69,85 @@ namespace dodobot_sd
     }
 
     //
+    // File from serial
+    //
+
+    String dest_path;
+    bool file_is_open = false;
+
+    // uint32_t file_max_len = 0x1020;
+    // uint8_t* file_buffer = new uint8_t[file_max_len];
+
+    uint32_t file_size = 0;
+    int32_t prev_segment_index = 0;
+
+    File file;
+
+    void open_file()
+    {
+        if (file_is_open) {
+            return;
+        }
+        const char* path = dest_path.c_str();
+        if (SD.exists(path)) {
+            SD.remove(path);
+        }
+        dodobot_serial::println_info("Opening path: %s", path);
+        file = SD.open(path, FILE_WRITE);
+        dodobot_serial::println_info("File name: %s", file.name());
+        file_is_open = true;
+        file_size = 0;
+    }
+
+    void close_file()
+    {
+        if (!file_is_open) {
+            return;
+        }
+        dodobot_serial::println_info("File name: %s", file.name());
+        file.close();
+        file_is_open = false;
+    }
+
+    bool append_to_buffer(char* file_bytes, uint32_t segment_size)
+    {
+        if (dest_path.length() == 0) {
+            dodobot_serial::println_error("Destination path not set for file");
+            return false;
+        }
+        if (!file_is_open) {
+            dodobot_serial::println_error("Destination file is not open");
+            return false;
+        }
+
+        // if (file_offset + segment_size > file_max_len) {
+        //     dodobot_serial::println_error("Loaded image is larger than max size: %d > %d", file_offset + segment_size, file_max_len);
+        //     return false;
+        // }
+        // memcpy(file_buffer + file_offset, file_bytes, segment_size);
+        // file_size = file_offset + segment_size;
+        file.write(file_bytes, segment_size);
+        file_size += segment_size;
+        dodobot_serial::println_info("File len: %d", file_size);
+        return true;
+    }
+
+    // bool write_buffer()
+    // {
+    //     if (dest_path.length() == 0) {
+    //         dodobot_serial::println_error("Destination path not set for file");
+    //         return false;
+    //     }
+    //     size_t written = file.write(file_buffer, file_size);
+    //     file.close();
+    //     if (written != file_size) {
+    //         dodobot_serial::println_error("Wrote a different number of bytes from expected: %d != %d", (int)written, (int)file_size);
+    //         return false;
+    //     }
+    //     return true;
+    // }
+
+    //
     // Animated GIFs
     //
 

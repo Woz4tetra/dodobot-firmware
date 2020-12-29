@@ -11,6 +11,7 @@
 #include "gripper-dodobot.h"
 #include "breakout-dodobot.h"
 #include "latch-circuit-dodobot.h"
+#include "sd-dodobot.h"
 
 using namespace dodobot_display;
 
@@ -453,25 +454,16 @@ namespace dodobot_menu
     }
 
     uint32_t image_array_max_len = 0x10000;
-    // uint32_t image_array_max_len = 8096;
-    uint8_t* image_array = new uint8_t[image_array_max_len];
-    uint32_t image_array_size = 0;
-    int32_t prev_segment_index = 0;
-    bool load_image(char* img_bytes, uint32_t array_size, uint32_t array_offset = 0)
-    {
-        if (array_offset + array_size > image_array_max_len) {
-            dodobot_serial::println_error("Loaded image is larger than max size: %d > %d", array_offset + array_size, image_array_max_len);
-            return false;
-        }
-        memcpy(image_array + array_offset, img_bytes, array_size);
-        image_array_size = array_offset + array_size;
-        dodobot_serial::println_info("Image len: %d", image_array_size);
-        return true;
-    }
-
     #define minimum(a,b)     (((a) < (b)) ? (a) : (b))
-    void renderJPEG(int xpos, int ypos)
+    void renderJPEG(const char* path, int xpos, int ypos)
     {
+        File file = SD.open(path);
+
+        uint8_t* image_array = new uint8_t[minimum(file.size(), image_array_max_len)];
+        uint32_t image_array_size = 0;
+        while (file.available()) {
+        	image_array[image_array_size++] = file.read();
+        }
         JpegDec.decodeArray(image_array, image_array_size);
         jpegInfo();
 
@@ -553,12 +545,13 @@ namespace dodobot_menu
         dodobot_serial::println_info("Total render time was: %d ms", drawTime);
     }
 
+    const char* splash_image_path = "DBSPLASH.JPG";
     void load_image_event()
     {
         if (DISPLAYED_MENU != IMAGE_MENU) {
             return;
         }
-        renderJPEG(0, TOP_BAR_H);
+        renderJPEG(splash_image_path, 0, TOP_BAR_H);
     }
 
     void draw_image_menu()
@@ -568,7 +561,7 @@ namespace dodobot_menu
 
     void draw_image_on_load()
     {
-        renderJPEG(0, TOP_BAR_H);
+        renderJPEG(splash_image_path, 0, TOP_BAR_H);
     }
 
     //

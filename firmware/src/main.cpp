@@ -240,27 +240,34 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         CHECK_SEGMENT(serial_obj, -1); dodobot_breakout::level_config = serial_obj->get_segment();
     }
 
-    else if (category.equals("img")) {
-        CHECK_SEGMENT(serial_obj, 4); int32_t segment_index = serial_obj->segment_as_int32();
-        CHECK_SEGMENT(serial_obj, 4); int32_t num_segments = serial_obj->segment_as_int32();
-        CHECK_SEGMENT(serial_obj, 2); uint16_t img_len = serial_obj->segment_as_uint16();
-        CHECK_SEGMENT(serial_obj, img_len); char* img_bytes = serial_obj->get_segment_raw();
+    else if (category.equals("setpath")) {
+        CHECK_SEGMENT(serial_obj, -1); dodobot_sd::dest_path = serial_obj->get_segment();
+    }
 
-        if (segment_index != 0 && segment_index - dodobot_menu::prev_segment_index != 1) {
-            dodobot_serial::println_error("Received segments out of order! %d - %d != 1", segment_index, dodobot_menu::prev_segment_index);
+    else if (category.equals("file"))
+    {
+        int32_t segment_index;
+        int32_t num_segments;
+        uint16_t file_len;
+        char* file_bytes;
+        if (!dodobot_serial::parse_large(serial_obj, segment_index, num_segments, file_len, dodobot_sd::prev_segment_index, &file_bytes)) {
             return;
         }
         if (segment_index == 0) {
-            dodobot_menu::image_array_size = 0;
+            if (dodobot_sd::file_is_open) {
+                dodobot_sd::close_file();
+            }
+            dodobot_sd::open_file();
         }
-        dodobot_menu::prev_segment_index = segment_index;
 
-        dodobot_serial::println_info("Received image. Segment %d of %d. Segment len: %d", segment_index + 1, num_segments, img_len);
-        if (!dodobot_menu::load_image(img_bytes, (uint32_t)img_len, dodobot_menu::image_array_size)) {
+        dodobot_sd::prev_segment_index = segment_index;
+
+        dodobot_serial::println_info("Received file. Segment %d of %d. Segment len: %d", segment_index + 1, num_segments, file_len);
+        if (!dodobot_sd::append_to_buffer(file_bytes, (uint32_t)file_len)) {
             return;
         }
         if (segment_index == num_segments - 1) {
-            dodobot_menu::load_image_event();
+            dodobot_sd::close_file();
         }
     }
 }
@@ -346,6 +353,7 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             break;  // 7
         case 0x9867:
             dodobot_serial::println_info("IR: 8");
+            dodobot_sd::loadGIF("TEST.GIF");
             // dodobot_speed_pid::update_setpointA(-3000);
             // dodobot_speed_pid::update_setpointB(-3000);
             // dodobot_chassis::set_motorA(-255);
