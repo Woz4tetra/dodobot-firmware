@@ -175,7 +175,7 @@ namespace dodobot_gripper
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
-        dodobot_serial::data->write("grip", "ud", CURRENT_TIME, gripper_pos);
+        DODOBOT_SERIAL_WRITE_BOTH("grip", "ud", CURRENT_TIME, gripper_pos);
         // dodobot_serial::info->write("grip", "ud", CURRENT_TIME, gripper_pos);
     }
 };
