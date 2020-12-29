@@ -342,6 +342,7 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
         case 0x18E7:
             dodobot_serial::println_info("IR: 7");
             dodobot_sd::list_all_files();
+            dodobot_sd::loadGIF("BW_BOT~1.GIF");
             break;  // 7
         case 0x9867:
             dodobot_serial::println_info("IR: 8");
@@ -401,5 +402,11 @@ void loop()
     dodobot_chassis::update();
     dodobot_speed_pid::update_speed_pid();
     dodobot_latch_circuit::update();
-    dodobot_menu::draw_menus();
+    if (!dodobot_sd::is_gif_loaded) {
+        dodobot_menu::draw_menus();
+    }
+
+    if (dodobot_sd::singleFrameGIF() != 1) {
+        dodobot_sd::closeGIF();
+    }
 }

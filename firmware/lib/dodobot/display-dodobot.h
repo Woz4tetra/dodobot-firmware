@@ -56,6 +56,19 @@ namespace dodobot_display
         tft.print("Hello!\n");
         dodobot_serial::println_info("Display ready");
     }
+
+    void pushRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data)
+    {
+        tft.startWrite();
+        tft.setAddrWindow(x, y, w, h);
+        for (int32_t row = 0; row < w; row++) {
+            for (int32_t col = 0; col < h; col++) {
+                tft.writeColor(*data++, 1);
+            }
+        }
+        tft.endWrite();
+    }
+
 };
 
 #endif  // __DODOBOT_DISPLAY_H__
