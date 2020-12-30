@@ -223,8 +223,9 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     else if (category.equals("date")) {
         CHECK_SEGMENT(serial_obj, -1);
-        dodobot_menu::date_string = serial_obj->get_segment();
-        dodobot_menu::prev_date_str_update = CURRENT_TIME;
+        // dodobot_menu::date_string = serial_obj->get_segment();
+        // dodobot_menu::prev_date_str_update = CURRENT_TIME;
+        dodobot_ui::update_date(serial_obj->get_segment());
     }
 
     else if (category.equals("network")) {
@@ -289,20 +290,24 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             dodobot_serial::println_info("IR: ^");
             // dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() + 10000);
             // dodobot_linear::set_velocity(dodobot_linear::MAX_SPEED);
-            dodobot_menu::up_menu_event();
+            dodobot_ui::on_up();
+            // dodobot_menu::up_menu_event();
             break;  // ^
         case 0x609f: dodobot_serial::println_info("IR: MODE"); break;  // MODE
         case 0x10ef:
             dodobot_serial::println_info("IR: <");
-            dodobot_menu::left_menu_event();
+            dodobot_ui::on_left();
+            // dodobot_menu::left_menu_event();
             break;  // <
         case 0x906f:
             dodobot_serial::println_info("IR: ENTER");
-            dodobot_menu::enter_menu_event();
+            dodobot_ui::on_enter();
+            // dodobot_menu::enter_menu_event();
             break;  // ENTER
         case 0x50af:
             dodobot_serial::println_info("IR: >");
-            dodobot_menu::right_menu_event();
+            dodobot_ui::on_right();
+            // dodobot_menu::right_menu_event();
             break;  // >
         case 0x30cf:
             dodobot_serial::println_info("IR: 0 10+");
@@ -313,11 +318,13 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             dodobot_serial::println_info("IR: v");
             // dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() - 10000);
             // dodobot_linear::set_velocity(-dodobot_linear::MAX_SPEED);
-            dodobot_menu::down_menu_event();
+            dodobot_ui::on_down();
+            // dodobot_menu::down_menu_event();
             break;  // v
         case 0x708f:
             dodobot_serial::println_info("IR: Del");
-            dodobot_menu::back_menu_event();
+            dodobot_ui::on_back();
+            // dodobot_menu::back_menu_event();
             break;  // Del
         case 0x08f7:
             dodobot_serial::println_info("IR: 1");
@@ -349,11 +356,9 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
         case 0x18E7:
             dodobot_serial::println_info("IR: 7");
             dodobot_sd::list_all_files();
-            dodobot_sd::loadGIF("BW_BOT~1.GIF");
             break;  // 7
         case 0x9867:
             dodobot_serial::println_info("IR: 8");
-            dodobot_sd::loadGIF("TEST.GIF");
             // dodobot_speed_pid::update_setpointA(-3000);
             // dodobot_speed_pid::update_setpointB(-3000);
             // dodobot_chassis::set_motorA(-255);
@@ -364,7 +369,8 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             // dodobot_linear::home_stepper();
             break;  // 9
         case 0xffff:  // repeat last command
-            dodobot_menu::repeat_key_event();
+            // dodobot_menu::repeat_key_event();
+            dodobot_ui::on_repeat();
             break;
     }
 }
@@ -384,9 +390,10 @@ void setup()
     dodobot_speed_pid::setup_pid();  tft.print("Speed PID ready\n");
     dodobot_latch_circuit::setup_latch();  tft.print("Latch ready\n");
     dodobot_sd::setup();  tft.print("SD card ready\n");
-    dodobot_menu::init_menus();
+    // dodobot_menu::init_menus();
     tft.print("Dodobot is ready to go!\n");
     dodobot_serial::println_info("Dodobot is ready to go!");
+    dodobot_ui::init();
 }
 
 void loop()
@@ -410,11 +417,6 @@ void loop()
     dodobot_chassis::update();
     dodobot_speed_pid::update_speed_pid();
     dodobot_latch_circuit::update();
-    if (!dodobot_sd::is_gif_loaded) {
-        dodobot_menu::draw_menus();
-    }
-
-    if (dodobot_sd::singleFrameGIF() != 1) {
-        dodobot_sd::closeGIF();
-    }
+    dodobot_ui::draw();
+    // dodobot_menu::draw_menus();
 }

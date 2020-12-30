@@ -69,6 +69,10 @@ namespace dodobot_display
         tft.endWrite();
     }
 
+    void textBounds(String s, uint16_t& w, uint16_t& h) {
+        int16_t x1, y1;
+        tft.getTextBounds(s, 0, 0, &x1, &y1, &w, &h);
+    }
 };
 
 #endif  // __DODOBOT_DISPLAY_H__

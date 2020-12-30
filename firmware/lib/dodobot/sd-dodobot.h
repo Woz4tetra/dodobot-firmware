@@ -320,7 +320,7 @@ namespace dodobot_sd
         return gif_info.iFrameCount;
     }
 
-    int singleFrameGIF()
+    int drawGIFframe()
     {
         if (!is_gif_loaded) {
             return -1;
