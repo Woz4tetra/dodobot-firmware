@@ -10,7 +10,7 @@
 #include "chassis-dodobot.h"
 #include "speed-pid-dodobot.h"
 #include "latch-circuit-dodobot.h"
-#include "menu-dodobot.h"
+// #include "menu-dodobot.h"
 #include "breakout-dodobot.h"
 #include "ui-dodobot.h"
 #include "sd-dodobot.h"
@@ -229,12 +229,12 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
     }
 
     else if (category.equals("network")) {
-        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_ip = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_netmask = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_broadcast = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_name = serial_obj->get_segment();
-        CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_error = serial_obj->get_segment();
-        dodobot_menu::network_str_update = CURRENT_TIME;
+        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_ip = serial_obj->get_segment();
+        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_netmask = serial_obj->get_segment();
+        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_broadcast = serial_obj->get_segment();
+        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_name = serial_obj->get_segment();
+        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_error = serial_obj->get_segment();
+        // dodobot_menu::network_str_update = CURRENT_TIME;
     }
 
     else if (category.equals("breakout")) {

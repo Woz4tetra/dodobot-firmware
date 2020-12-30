@@ -27,6 +27,10 @@ namespace dodobot_power_monitor
     float ina219_power_mW = 0.0;
     uint32_t ina_report_timer = 0;
 
+    float FULL_VOLTAGE = 12.15;
+    float OK_VOLTAGE = 10.5;
+    float LOW_VOLTAGE = 9.25;
+    float CRITICAL_VOLTAGE = 8.0;
 
     void setup_INA219()
     {
@@ -67,6 +71,28 @@ namespace dodobot_power_monitor
         // dodobot_serial::data->write("ina", "ufff", CURRENT_TIME, ina219_current_mA, ina219_power_mW, ina219_loadvoltage);
         // dodobot_serial::info->write(dodobot_serial::data->get_written_packet());
         DODOBOT_SERIAL_WRITE_BOTH("batt", "ufff", CURRENT_TIME, ina219_current_mA, ina219_power_mW, ina219_loadvoltage);
+    }
+
+    const int max_power_level = 5;
+    int power_level() {
+        if (ina219_loadvoltage >= FULL_VOLTAGE) {
+            return 5;
+        }
+        else if (ina219_loadvoltage >= OK_VOLTAGE) {
+            return 4;
+        }
+        else if (ina219_loadvoltage > LOW_VOLTAGE) {
+            return 3;
+        }
+        else if (ina219_loadvoltage <= LOW_VOLTAGE) {
+            return 2;
+        }
+        else if (ina219_loadvoltage <= CRITICAL_VOLTAGE) {
+            return 1;
+        }
+        else {
+            return 0;
+        }
     }
 };  // namespace rover6_i2c
 

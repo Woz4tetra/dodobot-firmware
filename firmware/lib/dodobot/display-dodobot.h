@@ -26,10 +26,11 @@
 #define  TO_RADIANS(x)  x * PI / 180.0
 
 
-#define ST77XX_GRAY        0x8410
-#define ST77XX_LIGHT_PINK  0xfcd3
-#define ST77XX_LIGHT_BLUE  0xcedf
-#define ST77XX_DARKER_BLUE 0x3bdb
+#define ST77XX_GRAY          0x8410
+#define ST77XX_LIGHT_PINK    0xfcd3
+#define ST77XX_LIGHT_BLUE    0xcedf
+#define ST77XX_DARKER_BLUE   0x3bdb
+#define ST77XX_DARKER_GREEN  0x0680
 
 namespace dodobot_display
 {
@@ -71,10 +72,29 @@ namespace dodobot_display
         tft.getTextBounds(s, 0, 0, &x1, &y1, &w, &h);
     }
 
-    void drawCircle(int16_t x0, int16_t y0, uint16_t r, uint16_t w, uint16_t color)
+    void fillPrevText(int16_t prev_x, int16_t prev_y, uint16_t prev_w, uint16_t prev_h,
+                      int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t bg_color)
     {
-        for (uint16_t r_index = 0; r_index <= w; r_index++) {
-            tft.drawCircle(x0, y0, r + r_index, color);
+        // fill rectangles on both sides of the previous text:
+        // |xx|        |xx|
+        // |xx|        |xx|
+        // |xx|        |xx|
+        if (prev_x - x < 0) {
+            tft.fillRect(prev_x, prev_y, x - prev_x, prev_h, bg_color);
+        }
+        if (((prev_x + prev_w) - (x + w)) > 0) {
+            tft.fillRect(x + w, prev_y, (prev_x + prev_w) - (x + w), prev_h, bg_color);
+        }
+
+        // fill rectangles on top and bottom of the previous text
+        // |  |xxxxxxxx|  |
+        // |  |        |  |
+        // |  |xxxxxxxx|  |
+        if (prev_y - y < 0) {
+            tft.fillRect(x, prev_y, w, y - prev_y, bg_color);
+        }
+        if ((prev_y + prev_h) - (y + h) > 0) {
+            tft.fillRect(x, y + h, w, (prev_y + prev_h) - (y + h), bg_color);
         }
     }
 
@@ -166,6 +186,15 @@ namespace dodobot_display
             x1 = x2;
             y1 = y2;
         }
+    }
+
+
+    void drawCircle(int16_t x0, int16_t y0, uint16_t r, uint16_t w, uint16_t color)
+    {
+        // for (int16_t r_index = -w; r_index <= 0; r_index++) {
+        //     tft.drawCircle(x0, y0, r + r_index, color);
+        // }
+        drawArc(x0, y0, 0, 360, r, r, w, color);
     }
 };
 

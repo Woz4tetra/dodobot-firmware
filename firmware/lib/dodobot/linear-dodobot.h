@@ -6,6 +6,7 @@
 #include <Encoder.h>
 
 #include "dodobot.h"
+#include "ui-dodobot.h"
 
 #define TIC_SERIAL Serial1
 
@@ -328,6 +329,7 @@ namespace dodobot_linear
                 {
                     dodobot_serial::println_error("Homing routine failed. Position error!");
                     send_event(LinearEvent::HOMING_FAILED);
+                    dodobot_ui::notify(dodobot_ui::ERROR, "Home failed", 5000);
                     tic.haltAndHold();
                     return false;
                 }
@@ -336,6 +338,7 @@ namespace dodobot_linear
             if (CURRENT_TIME - timeout_timer > 10000) {   // 10 second timeout
                 dodobot_serial::println_error("Homing routine timed out");
                 send_event(LinearEvent::HOMING_FAILED);
+                dodobot_ui::notify(dodobot_ui::ERROR, "Home failed", 5000);
                 tic.haltAndHold();
                 return false;
             }
@@ -388,6 +391,7 @@ namespace dodobot_linear
         if (speed != FAST_HOMING_SPEED) {
             dodobot_serial::println_error("Homing routine failed to send desired speed. %d != %d", speed, FAST_HOMING_SPEED);
             send_event(LinearEvent::HOMING_FAILED);
+            dodobot_ui::notify(dodobot_ui::ERROR, "Home failed", 5000);
             return;
         }
         if (check_errors()) {
@@ -460,10 +464,12 @@ namespace dodobot_linear
     void set_velocity(int velocity) {
         if (!is_active) {
             send_event(LinearEvent::NOT_ACTIVE);
+            dodobot_ui::notify(dodobot_ui::ERROR, "Not active", 5000);
             return;
         }
         if (!is_homed) {
             send_event(LinearEvent::NOT_HOMED);
+            dodobot_ui::notify(dodobot_ui::ERROR, "Not homed", 5000);
             return;
         }
         target_velocity = velocity;
@@ -563,6 +569,7 @@ namespace dodobot_linear
             reset_to_enc_position();
             dodobot_serial::println_error("Position error!");
             send_event(LinearEvent::POSITION_ERROR);
+            dodobot_ui::notify(dodobot_ui::ERROR, "Position error", 5000);
         }
 
         tic.resetCommandTimeout();
