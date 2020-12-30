@@ -5,7 +5,10 @@
 #include "sd-dodobot.h"
 #include "display-dodobot.h"
 
+
 using namespace dodobot_display;
+
+
 
 namespace dodobot_ui
 {
@@ -245,11 +248,11 @@ namespace dodobot_ui
 
     const size_t num_main_menu_entries = 4;
 
-    enum MainMenuEntries {
-        NETWORK,
-        ROBOT,
-        SYSTEM,
-        SHUTDOWN
+    enum MainMenuEntry {
+        NETWORK = 0,
+        ROBOT = 1,
+        SYSTEM = 2,
+        SHUTDOWN = 3
     };
 
     class MainMenuController : public ViewWithOverlayController
@@ -290,10 +293,11 @@ namespace dodobot_ui
 
         void draw_all()
         {
+            tft.startWrite();
             for (int index = 0; index < num_draw_slots; index++) {
                 int cx = draw_slots[index];
                 int draw_index = (selected_index + index - 1) % num_main_menu_entries;
-                draw_icon(cx, draw_index);
+                draw_icon(cx, (MainMenuEntry)draw_index);
             }
 
             int cx = draw_slots[1];
@@ -301,10 +305,104 @@ namespace dodobot_ui
             int x = cx - selected_w / 2;
             int y = cy - selected_h / 2;
             tft.drawRoundRect(x, y, selected_w, selected_h, selected_r, ST77XX_WHITE);
+            tft.endWrite();
         }
 
-        void draw_icon(int cx, int index) {
+        void draw_icon(int cx, MainMenuEntry index)
+        {
+            int cy = draw_height;
+            int x = cx - icon_w / 2;
+            int y = cy - icon_h / 2;
 
+            switch (index) {
+                case NETWORK: draw_network_icon(x, y, cx, cy);  break;
+                case ROBOT:  draw_robot_status_icon(x, y, cx, cy);  break;
+                case SYSTEM:  draw_system_icon(x, y, cx, cy);  break;
+                case SHUTDOWN:  draw_shutdown_icon(x, y, cx, cy);  break;
+                default: tft.fillRoundRect(x, y, icon_w, icon_h, icon_r, ST77XX_WHITE);
+            }
+
+            tft.setTextSize(1);
+            tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+            String text = entry_name(index);
+            uint16_t w, h;
+            dodobot_display::textBounds(text, w, h);
+            x = cx - w / 2;
+            y = icon_text_height - h / 2;
+            tft.setCursor(x, y);
+            tft.print(text);
+        }
+
+        void draw_network_icon(int x, int y, int cx, int cy)
+        {
+            tft.fillRoundRect(x, y, icon_w, icon_h, icon_r, ST77XX_WHITE);
+            int fan_angle = 35;
+            int center_angle = 270;
+            int max_fan_w = icon_h - 10;
+            int mid_fan_w = 2 * max_fan_w / 3 + 3;
+            int low_fan_w = max_fan_w / 3 + 5;
+            int thickness = 6;
+            x = cx;
+            y = cy + icon_h / 2 - 5;
+            dodobot_display::drawArc(x, y, center_angle - fan_angle, center_angle + fan_angle, max_fan_w, max_fan_w, thickness, ST77XX_GRAY);
+            dodobot_display::drawArc(x, y, center_angle - fan_angle, center_angle + fan_angle, mid_fan_w, mid_fan_w, thickness, ST77XX_GRAY);
+            dodobot_display::drawArc(x, y, center_angle - fan_angle, center_angle + fan_angle, low_fan_w, low_fan_w, thickness, ST77XX_GRAY);
+            tft.fillCircle(x, y - 3, 5, ST77XX_GRAY);
+        }
+
+        void draw_robot_status_icon(int x, int y, int cx, int cy)
+        {
+            tft.fillRoundRect(x, y, icon_w, icon_h, icon_r, ST77XX_LIGHT_BLUE);
+            int triangle_cx = cx + 2;
+            int triangle_cy = cy + 5;
+            int x0 = triangle_cx;
+            int y0 = triangle_cy;
+            int x1 = cx - icon_w / 2 + 7;
+            int y1 = cy + icon_h / 2 - 15;
+            int x2 = cx + icon_w / 2 - 15;
+            int y2 = cy - icon_h / 2 + 7;
+            int x3 = cx + icon_w / 2 - 15;
+            int y3 = cy + icon_h / 2 - 7;
+            tft.fillTriangle(x0, y0, x1, y1, x2, y2, ST77XX_DARKER_BLUE);
+            tft.fillTriangle(x0, y0, x2, y2, x3, y3, ST77XX_DARKER_BLUE);
+        }
+
+        void draw_system_icon(int x, int y, int cx, int cy)
+        {
+            tft.fillRoundRect(x, y, icon_w, icon_h, icon_r, ST77XX_GRAY);
+
+            int outer_r = icon_w / 2 - 7;
+            int inner_r = icon_w / 7;
+            dodobot_display::drawCircle(cx, cy, outer_r, 5, ST77XX_BLACK);
+            tft.fillCircle(cx, cy, inner_r, ST77XX_BLACK);
+
+            int center_angle = 0;
+            for (int index = 0; index < 8; index++)
+            {
+                int tooth_cx = (float)outer_r * cos(TO_RADIANS(center_angle)) + cx;
+                int tooth_cy = (float)outer_r * sin(TO_RADIANS(center_angle)) + cy;
+
+                tft.fillCircle(tooth_cx, tooth_cy, 5, ST77XX_BLACK);
+
+                center_angle += 45;
+            }
+        }
+
+        void draw_shutdown_icon(int x, int y, int cx, int cy)
+        {
+            tft.fillRoundRect(x, y, icon_w, icon_h, icon_r, ST77XX_LIGHT_PINK);
+
+            int outer_r = icon_w / 2 - 7;
+            int rect_w = 5;
+            int rect_h = 20;
+            int rect_border = 6;
+
+            dodobot_display::drawCircle(cx, cy, outer_r, rect_w, ST77XX_BLACK);
+
+            x = cx - rect_w / 2;
+            y = cy - outer_r - 3;
+            tft.fillRect(x - rect_border / 2, y - rect_border / 2, rect_w + rect_border, rect_h + rect_border, ST77XX_LIGHT_PINK);
+            tft.fillRoundRect(x, y, rect_w, rect_h, 2, ST77XX_BLACK);
         }
 
     private:
@@ -327,7 +425,7 @@ namespace dodobot_ui
 
         int selected_index = 1;
 
-        String entry_name(MainMenuEntries entry) {
+        String entry_name(MainMenuEntry entry) {
             switch (entry) {
                 case NETWORK: return "Network";
                 case ROBOT:  return "Robot";
@@ -337,7 +435,7 @@ namespace dodobot_ui
             }
         }
 
-        String view_name(MainMenuEntries entry) {
+        String view_name(MainMenuEntry entry) {
             switch (entry) {
                 case NETWORK: return "network";
                 case ROBOT:  return "robot";
@@ -451,12 +549,12 @@ namespace dodobot_ui
     void on_repeat() {
         if (current_view == NULL)  return;
         switch (last_event) {
-            case UP_EVENT:  current_view->on_up();
-            case DOWN_EVENT:  current_view->on_down();
-            case LEFT_EVENT:  current_view->on_left();
-            case RIGHT_EVENT:  current_view->on_right();
-            case BACK_EVENT:  current_view->on_back();
-            case ENTER_EVENT:  current_view->on_enter();
+            case UP_EVENT:  current_view->on_up();  break;
+            case DOWN_EVENT:  current_view->on_down();  break;
+            case LEFT_EVENT:  current_view->on_left();  break;
+            case RIGHT_EVENT:  current_view->on_right();  break;
+            case BACK_EVENT:  current_view->on_back();  break;
+            case ENTER_EVENT:  current_view->on_enter();  break;
             default: return;
         }
     }

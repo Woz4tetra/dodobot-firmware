@@ -211,7 +211,7 @@ namespace dodobot_sd
 
     static void TFTDraw(int x, int y, int w, int h, uint16_t* lBuf )
     {
-        dodobot_display::pushRect(x + xOffset, y + yOffset, w, h, lBuf);
+        tft.drawRGBBitmap(x + xOffset, y + yOffset, lBuf, w, h);
     }
 
 

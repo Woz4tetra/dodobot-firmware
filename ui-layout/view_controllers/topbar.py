@@ -122,7 +122,7 @@ class TopbarController(ViewController):
         y = (self.height - h) // 2
         self.screen.setCursor(x, y)
 
-        self.screen.setTextColor(self.notification_color, ST77XX_WHITE)
+        self.screen.setTextColor(self.notification_color, self.notification_color)
         self.screen.fillRect(0, y, self.screen.width(), y + 8, ST77XX_BLACK)
         self.screen.print(self.text)
         self.screen.setTextColor(ST77XX_WHITE, ST77XX_BLACK)

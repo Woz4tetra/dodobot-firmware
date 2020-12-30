@@ -24,6 +24,9 @@ class Color565:
     def __eq__(self, other):
         return self.value == other.value
 
+    def __repr__(self):
+        return str(self.value)
+
 
 ST77XX_BLACK = Color565.from_int(0x0000)
 ST77XX_WHITE = Color565.from_int(0xFFFF)
@@ -35,7 +38,9 @@ ST77XX_MAGENTA = Color565.from_int(0xF81F)
 ST77XX_YELLOW = Color565.from_int(0xFFE0)
 ST77XX_ORANGE = Color565.from_int(0xFC00)
 ST77XX_GRAY = Color565.from_rgb((128, 128, 128))
-
+ST77XX_LIGHT_PINK = Color565.from_rgb((255, 154, 159))
+ST77XX_LIGHT_BLUE = Color565.from_rgb((201, 217, 248))
+ST77XX_DARKER_BLUE = Color565.from_rgb((61, 120, 216))
 
 if __name__ == '__main__':
     def conversion_test():
@@ -77,6 +82,8 @@ if __name__ == '__main__':
     def test_colors():
         truth_table_test()
         conversion_test()
+        print(hex(ST77XX_LIGHT_BLUE.value))
+        print(hex(ST77XX_DARKER_BLUE.value))
 
 
     test_colors()

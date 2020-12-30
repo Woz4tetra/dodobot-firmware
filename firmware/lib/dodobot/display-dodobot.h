@@ -6,8 +6,8 @@
 
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
-#include <Adafruit_ST7789.h> // Hardware-specific library for ST7789
 #include <SPI.h>
+#include <math.h>
 
 #include "dodobot.h"
 
@@ -21,6 +21,15 @@
 #define TFT_RST    9
 #define TFT_DC     8
 #define TFT_LITE   6
+
+
+#define  TO_RADIANS(x)  x * PI / 180.0
+
+
+#define ST77XX_GRAY        0x8410
+#define ST77XX_LIGHT_PINK  0xfcd3
+#define ST77XX_LIGHT_BLUE  0xcedf
+#define ST77XX_DARKER_BLUE 0x3bdb
 
 namespace dodobot_display
 {
@@ -57,21 +66,106 @@ namespace dodobot_display
         dodobot_serial::println_info("Display ready");
     }
 
-    void pushRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data)
-    {
-        tft.startWrite();
-        tft.setAddrWindow(x, y, w, h);
-        for (int32_t row = 0; row < w; row++) {
-            for (int32_t col = 0; col < h; col++) {
-                tft.writeColor(*data++, 1);
-            }
-        }
-        tft.endWrite();
-    }
-
     void textBounds(String s, uint16_t& w, uint16_t& h) {
         int16_t x1, y1;
         tft.getTextBounds(s, 0, 0, &x1, &y1, &w, &h);
+    }
+
+    void drawCircle(int16_t x0, int16_t y0, uint16_t r, uint16_t w, uint16_t color)
+    {
+        for (uint16_t r_index = 0; r_index <= w; r_index++) {
+            tft.drawCircle(x0, y0, r + r_index, color);
+        }
+    }
+
+
+    void drawArc(int x, int y, int start_angle, int stop_angle, int rx, int ry, int w, uint16_t color, int increment = 3)
+    {
+        double sx = cos(TO_RADIANS(start_angle));
+        double sy = sin(TO_RADIANS(start_angle));
+        double sx2, sy2;
+
+        double x0 = round(sx * (rx - w) + x);
+        double y0 = round(sy * (ry - w) + y);
+        double x1 = round(sx * rx + x);
+        double y1 = round(sy * ry + y);
+        double x2, y2, x3, y3;
+        int i = start_angle;
+        while (true)
+        {
+            if (stop_angle >= start_angle)
+            {
+                i += increment;
+                if (i > stop_angle) {
+                    break;
+                }
+            }
+            else if (stop_angle <= start_angle)
+            {
+                i -= increment;
+                if (i < stop_angle) {
+                    break;
+                }
+            }
+
+            sx2 = cos(TO_RADIANS(i));
+            sy2 = sin(TO_RADIANS(i));
+
+            x2 = round(sx2 * (rx - w) + x);
+            y2 = round(sy2 * (ry - w) + y);
+            x3 = round(sx2 * rx + x);
+            y3 = round(sy2 * ry + y);
+
+            tft.fillTriangle(x0, y0, x1, y1, x2, y2, color);
+            tft.fillTriangle(x1, y1, x2, y2, x3, y3, color);
+
+            x0 = x2;
+            y0 = y2;
+            x1 = x3;
+            y1 = y3;
+        }
+    }
+
+    void fillArc(int x, int y, int start_angle, int stop_angle, int rx, int ry, uint16_t color, int increment = 3)
+    {
+        double sx = cos(TO_RADIANS(start_angle));
+        double sy = sin(TO_RADIANS(start_angle));
+        double sx2, sy2;
+
+        int x0 = (int)round(x);
+        int y0 = (int)round(y);
+        int x1 = (int)round(sx * rx + x);
+        int y1 = (int)round(sy * ry + y);
+        int x2, y2;
+        int i = start_angle;
+        while (true)
+        {
+            if (stop_angle >= start_angle)
+            {
+                i += increment;
+                if (i > stop_angle) {
+                    break;
+                }
+            }
+            else if (stop_angle <= start_angle)
+            {
+                i -= increment;
+                if (i < stop_angle) {
+                    break;
+                }
+            }
+
+            sx2 = cos(TO_RADIANS(i));
+            sy2 = sin(TO_RADIANS(i));
+
+            x2 = (int)round(sx2 * rx + x);
+            y2 = (int)round(sy2 * ry + y);
+
+            tft.fillTriangle(x0, y0, x1, y1, x2, y2, color);
+
+            x1 = x2;
+            y1 = y2;
+        }
     }
 };
 

@@ -54,6 +54,9 @@ def on_event(tft, event):
         if VOLTAGE_V < topbar.CRITICAL_VOLTAGE - 1.0:
             VOLTAGE_V = topbar.FULL_VOLTAGE
 
+    elif event.key == pygame.K_r:
+        tft.load_view(0)
+
 def update_topbar_time(tft):
     topbar_inst = tft.controllers[1].topbar
     if topbar_inst.connection_status == topbar.USB_CONNECTION_STABLE:
@@ -102,7 +105,7 @@ def main():
 
     tft.fillScreen(ST77XX_BLACK)
 
-    tft.load_view(1)
+    tft.load_view(0)
 
     while tft.running:
         if not tft.update():
