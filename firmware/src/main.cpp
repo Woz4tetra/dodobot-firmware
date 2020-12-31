@@ -242,7 +242,8 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
     }
 
     else if (category.equals("setpath")) {
-        CHECK_SEGMENT(serial_obj, -1); dodobot_sd::dest_path = serial_obj->get_segment();
+        CHECK_SEGMENT(serial_obj, -1);
+        dodobot_sd::set_dest_path(String(serial_obj->get_segment()));
     }
 
     else if (category.equals("file"))

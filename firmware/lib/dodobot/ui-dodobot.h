@@ -13,7 +13,7 @@ using namespace dodobot_display;
 
 namespace dodobot_ui
 {
-    const uint32_t UI_DELAY_MS_DEFAULT = 100;
+    const uint32_t UI_DELAY_MS_DEFAULT = 150;
     uint32_t UI_DELAY_MS = UI_DELAY_MS_DEFAULT;
     uint32_t ui_timer = 0;
 
@@ -234,6 +234,7 @@ namespace dodobot_ui
         NO_USB_POWER,
         USB_POWER_DETECTED,
         USB_STABLE,
+        SHUTTING_DOWN,
         USB_UNKNOWN
     };
     String date_string = "00:00:00AM";
@@ -273,7 +274,7 @@ namespace dodobot_ui
         }
 
         void fillBottomScreen() {
-            tft.fillRect(0, height + 1, tft.width(), tft.height(), ST77XX_BLACK);
+            tft.fillRect(0, get_height(), tft.width(), tft.height(), ST77XX_BLACK);
         }
         void draw()
         {
@@ -311,6 +312,14 @@ namespace dodobot_ui
         void on_right()  {}
         void on_back()  {}
         void on_enter()  {}
+
+        int get_height() {
+            return height + 1;
+        }
+
+        int get_width() {
+            return width;
+        }
 
     private:
         int height = 21;
@@ -459,6 +468,10 @@ namespace dodobot_ui
                 else if (usb_state == USB_STABLE) {
                     conn_color = ST77XX_GREEN;
                 }
+                else if (usb_state == SHUTTING_DOWN) {
+                    conn_color = ST77XX_WHITE;
+                    notify(INFO, "Shutting down", dodobot_latch_circuit::POWER_OFF_THRESHOLD_MS);
+                }
                 dodobot_display::drawArc(connection_icon_cx, connection_icon_cy, 90, -90, top_icon_r, top_icon_r, status_arc_w, conn_color);
             }
 
@@ -467,7 +480,7 @@ namespace dodobot_ui
                 prev_motors = dodobot::robot_state.motors_active;
                 uint16_t motor_color = ST77XX_GRAY;
                 if (dodobot::robot_state.motors_active) {
-                    motor_color = ST77XX_DARKER_GREEN;
+                    motor_color = ST77XX_GREEN;
                 }
                 tft.fillCircle(report_icon_cx, report_icon_cy, motor_icon_r, motor_color);
                 tft.fillCircle(connection_icon_cx, connection_icon_cy, motor_icon_r, motor_color);
@@ -540,7 +553,12 @@ namespace dodobot_ui
         void update_usb_state()
         {
             if (!dodobot_latch_circuit::state.usb_voltage_state) {
-                usb_state = NO_USB_POWER;
+                if (dodobot_latch_circuit::state.usb_connected_once) {
+                    usb_state = SHUTTING_DOWN;
+                }
+                else {
+                    usb_state = NO_USB_POWER;
+                }
             }
             else {
                 if (prev_date_str_update == 0 || CURRENT_TIME - prev_date_str_update > 2000) {
@@ -622,7 +640,9 @@ namespace dodobot_ui
             move_select_right();
             draw_all();
         }
-        void on_back()  {}
+        void on_back()  {
+            load("splash");
+        }
         void on_enter()  {
             if (selected_index < 0 || selected_index >= num_main_menu_entries) {
                 return;
@@ -873,13 +893,19 @@ namespace dodobot_ui
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
-        void draw_with_overlay()  {}
+        void draw_with_overlay() {
+            dodobot_sd::drawGIFframe();
+        }
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
+            dodobot_sd::loadGIF("CHANSEY.GIF");
+            dodobot_sd::setGIFoffset(0, topbar()->get_height());
         }
 
-        void on_unload_with_overlay()  {}
+        void on_unload_with_overlay() {
+            dodobot_sd::closeGIF();
+        }
         void on_up()  {}
         void on_down()  {}
         void on_left()  {}

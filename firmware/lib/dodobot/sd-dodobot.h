@@ -83,6 +83,11 @@ namespace dodobot_sd
 
     File file;
 
+    void set_dest_path(String path) {
+        dest_path = path;
+        dodobot_serial::println_info("Setting path to: %s", dest_path.c_str());
+    }
+
     void open_file()
     {
         if (file_is_open) {
@@ -311,11 +316,19 @@ namespace dodobot_sd
             dodobot_serial::println_error("Could not open gif %s", path);
             return -1;
         }
+
+
+        dodobot_serial::println_info("Opened GIF. Canvas size: %dx%d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
+
         setGIFoffset(0, 0);
-        gif.getInfo(&gif_info);
-        if (gif_info.iFrameCount <= 0) {
-            dodobot_serial::println_error("Loaded GIF has no frames %s!", path);
+
+        if (gif.getInfo(&gif_info)) {
+            dodobot_serial::println_info("frame count: %d\n", gif_info.iFrameCount);
+            dodobot_serial::println_info("duration: %d ms\n", gif_info.iDuration);
+            dodobot_serial::println_info("max delay: %d ms\n", gif_info.iMaxDelay);
+            dodobot_serial::println_info("min delay: %d ms\n", gif_info.iMinDelay);
         }
+
         is_gif_loaded = true;
         return gif_info.iFrameCount;
     }
