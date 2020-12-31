@@ -6,6 +6,7 @@
 
 #include "dodobot.h"
 #include "display-dodobot.h"
+#include "chassis-dodobot.h"
 
 
 namespace dodobot_breakout
@@ -624,6 +625,7 @@ namespace dodobot_breakout
 
     void on_load()
     {
+        tft.fillScreen(ST7735_BLACK);
         level_start_time = 0;
         num_strikeouts = 0;
         all_destroyed = false;

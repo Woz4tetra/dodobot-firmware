@@ -5,6 +5,7 @@
 #include "sd-dodobot.h"
 #include "display-dodobot.h"
 #include "latch-circuit-dodobot.h"
+#include "breakout-dodobot.h"
 
 
 using namespace dodobot_display;
@@ -24,7 +25,17 @@ namespace dodobot_ui
         RIGHT_EVENT,
         BACK_EVENT,
         ENTER_EVENT,
-        NONE_EVENT
+        NONE_EVENT,
+        EVENT_0,
+        EVENT_1,
+        EVENT_2,
+        EVENT_3,
+        EVENT_4,
+        EVENT_5,
+        EVENT_6,
+        EVENT_7,
+        EVENT_8,
+        EVENT_9,
     };
 
 
@@ -44,6 +55,7 @@ namespace dodobot_ui
         virtual void on_back()  {}
         virtual void on_enter()  {}
         virtual void on_repeat(EventType e)  {}
+        virtual void on_numpad(int number)  {}
     };
 
     class ViewWithOverlayController : public ViewController
@@ -142,37 +154,40 @@ namespace dodobot_ui
         return notif;
     }
 
-    static const int max_notifs = 5;
-    class NotificationQueue
+    template <class T>
+    class Queue
     {
     public:
-        NotificationQueue()  {}
+        Queue(int max_len) {
+            this->max_len = max_len;
+            buffer = new T[max_len];
+        }
 
         bool empty() {
             return len == 0;
         }
 
-        bool queue_full() {
-            return len == max_notifs;
+        bool full() {
+            return len == max_len;
         }
 
         int size() {
             return len;
         }
 
-        bool queue(Notification notif)
+        bool queue(T item)
         {
-            if (queue_full()) {
+            if (full()) {
                 return false;
             }
-            if (is_notif_present(notif)) {
+            if (is_present(item)) {
                 return false;
             }
 
-            if (back == max_notifs - 1) {
+            if (back == max_len - 1) {
                 back = -1;
             }
-            buffer[++back] = notif;
+            buffer[++back] = item;
             len++;
 
             return true;
@@ -185,7 +200,7 @@ namespace dodobot_ui
             }
             int index = front;
             front++;
-            if (front == max_notifs) {
+            if (front == max_len) {
                 front = 0;
             }
             len--;
@@ -198,9 +213,36 @@ namespace dodobot_ui
             return front;
         }
 
-        bool is_notif_present(Notification notif)
+        virtual bool is_present(T item) {
+            return false;
+        }
+
+        T get_index(int index) {
+            if (index < 0) {
+                index = 0;
+            }
+            if (index >= max_len) {
+                index = max_len - 1;
+            }
+            return buffer[index];
+        }
+    protected:
+        T* buffer;
+        int front = 0;
+        int back = -1;
+        int len = 0;
+        int max_len;
+    };
+
+    const int max_notifs = 5;
+    class NotificationQueue : public Queue<Notification>
+    {
+    public:
+        NotificationQueue() : Queue(max_notifs)  {}
+
+        bool is_present(Notification notif)
         {
-            for (size_t index = 0; index < max_notifs; index++) {
+            for (int index = 0; index < max_len; index++) {
                 if (buffer[index].spent) {
                     continue;
                 }
@@ -211,23 +253,54 @@ namespace dodobot_ui
             return false;
         }
 
-        Notification get_index(int index) {
-            if (index < 0) {
-                index = 0;
-            }
-            if (index >= max_notifs) {
-                index = max_notifs - 1;
-            }
-            return buffer[index];
-        }
         void set_spent(int index) {
             buffer[index].spent = true;
         }
-    private:
-        Notification buffer[max_notifs];
-        int front = 0;
-        int back = -1;
-        int len = 0;
+    };
+
+    class NumberSequence : public Queue<int>
+    {
+    public:
+        NumberSequence(int max_len) : Queue<int>(max_len)  {}
+
+        bool check_sequence(int* sequence, int seq_len)
+        {
+            if (empty()) {
+                return false;
+            }
+            if (seq_len > len) {
+                return false;
+            }
+            int index = front;
+            int seq_index = 0;
+            bool start_found = false;
+            while (index != back)
+            {
+                if (!start_found) {
+                    if (buffer[index] == sequence[seq_index]) {
+                        start_found = true;
+                        seq_index++;
+                    }
+                }
+                else {
+                    if (buffer[index] != sequence[seq_index]) {
+                        return false;
+                    }
+                    seq_index++;
+                }
+                index++;
+                if (index >= max_len) {
+                    index = 0;
+                }
+                if (seq_index >= seq_len) {
+                    return true;
+                }
+            }
+            if (start_found) {
+                return buffer[index] == sequence[seq_index];
+            }
+            return false;
+        }
     };
 
     enum ConnectState {
@@ -528,17 +601,20 @@ namespace dodobot_ui
             stop_index = max(stop_index, gauge_len);
             for (int index = 0; index < stop_index; index++)
             {
+                int gauge_x = battery_x - single_char_w * (index + 1);
+                int inv_index = gauge_len - index;
+                uint16_t capacity_color = ST77XX_GRAY;
+
                 if (index < gauge_len)
                 {
-                    int gauge_x = battery_x - single_char_w * (index + 1);
-                    int inv_index = gauge_len - index;
-                    uint16_t capacity_color = ST77XX_GRAY;
                     if (inv_index <= gauge_count) {
                         capacity_color = battery_color;
                     }
-
-                    tft.fillRect(gauge_x, y_V, single_char_w, h_gauge, capacity_color);
                 }
+                else {
+                    capacity_color = ST77XX_BLACK;
+                }
+                tft.fillRect(gauge_x, y_V, single_char_w, h_gauge, capacity_color);
             }
 
             tft.setTextColor(ST77XX_WHITE, ST77XX_WHITE);  // transparent text background
@@ -580,11 +656,15 @@ namespace dodobot_ui
         SHUTDOWN = 3
     };
 
+    const int breakout_seq_len = 5;
+    int breakout_sequence[breakout_seq_len] = {8, 1, 5, 3, 8};
+
     class MainMenuController : public ViewWithOverlayController
     {
     public:
         MainMenuController(ViewController* topbar) : ViewWithOverlayController(topbar) {
             draw_slots = new int[num_draw_slots];
+            number_sequence = new NumberSequence(num_seq_len);
         }
 
         TopbarController* topbar() {
@@ -648,6 +728,20 @@ namespace dodobot_ui
                 return;
             }
             load(view_name((MainMenuEntry)selected_index));
+        }
+
+        void on_numpad(int number) {
+            dodobot_serial::println_info("number: %d", number);
+            if (number_sequence->full()) {
+                number_sequence->deque();
+            }
+            number_sequence->queue(number);
+            if (number_sequence->check_sequence(breakout_sequence, breakout_seq_len)) {
+                for (size_t i = 0; i < breakout_seq_len; i++) {
+                    number_sequence->deque();
+                }
+                load("breakout");
+            }
         }
 
         void draw_all()
@@ -801,6 +895,9 @@ namespace dodobot_ui
         int num_draw_slots = 3;
         int* draw_slots;
 
+        int num_seq_len = 10;
+        NumberSequence* number_sequence;
+
         int draw_height = 0;
         int icon_text_height = 0;
         int icon_w = 50;
@@ -827,6 +924,42 @@ namespace dodobot_ui
             }
         }
 
+    };
+
+    class BreakoutController : public ViewController
+    {
+    public:
+        void draw() {
+            dodobot_breakout::draw();
+        }
+        void on_load() {
+            UI_DELAY_MS = dodobot_breakout::UPDATE_DELAY_MS;
+            dodobot_breakout::on_load();
+        }
+
+        void on_unload()  {
+            UI_DELAY_MS = UI_DELAY_MS_DEFAULT;
+            dodobot_breakout::on_unload();
+            tft.fillScreen(ST77XX_BLACK);
+        }
+
+        void on_up()  {}
+        void on_down()  {}
+        void on_left() {
+            dodobot_breakout::left_event();
+        }
+        void on_right() {
+            dodobot_breakout::right_event();
+        }
+        void on_back()  {
+            load("main-menu");
+        }
+        void on_enter() {
+            dodobot_breakout::enter_event();
+        }
+        void on_repeat(EventType e) {
+            dodobot_breakout::repeat_key_event();
+        }
     };
 
     class NetworkScreenController : public ViewWithOverlayController
@@ -982,6 +1115,7 @@ namespace dodobot_ui
     RobotScreenController* robot_screen = new RobotScreenController(topbar);
     SystemScreenController* system_screen = new SystemScreenController(topbar);
     ShutdownScreenController* shutdown_screen = new ShutdownScreenController(topbar);
+    BreakoutController* breakout_screen = new BreakoutController;
 
     void init()
     {
@@ -991,6 +1125,7 @@ namespace dodobot_ui
         add_view(main_menu->view_name(ROBOT), robot_screen);
         add_view(main_menu->view_name(SYSTEM), system_screen);
         add_view(main_menu->view_name(SHUTDOWN), shutdown_screen);
+        add_view("breakout", breakout_screen);
         load("splash");
         dodobot_serial::println_info("UI ready");
     }
@@ -1050,5 +1185,22 @@ namespace dodobot_ui
     void on_repeat() {
         if (current_view == NULL)  return;
         current_view->on_repeat(last_event);
+    }
+
+    void on_numpad(int number) {
+        if (current_view == NULL)  return;
+        current_view->on_numpad(number);
+        switch (number) {
+            case 0: last_event = EVENT_0; break;
+            case 1: last_event = EVENT_1; break;
+            case 2: last_event = EVENT_2; break;
+            case 3: last_event = EVENT_3; break;
+            case 4: last_event = EVENT_4; break;
+            case 5: last_event = EVENT_5; break;
+            case 6: last_event = EVENT_6; break;
+            case 7: last_event = EVENT_7; break;
+            case 8: last_event = EVENT_8; break;
+            case 9: last_event = EVENT_9; break;
+        }
     }
 }

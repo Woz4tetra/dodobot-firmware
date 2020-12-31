@@ -291,6 +291,8 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
         case 0x40bf: dodobot_serial::println_info("IR: VOL+"); break;  // VOL+
         case 0x20df: dodobot_serial::println_info("IR: SETUP");
             // dodobot_display::setup_display();  tft.print("Display ready\n");
+            dodobot::robot_state.is_reporting_enabled = !dodobot::robot_state.is_reporting_enabled;
+            dodobot_serial::println_info("is_reporting_enabled: %d", dodobot::robot_state.is_reporting_enabled);
             break;  // SETUP
         case 0xa05f:
             dodobot_serial::println_info("IR: ^");
@@ -317,8 +319,7 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             break;  // >
         case 0x30cf:
             dodobot_serial::println_info("IR: 0 10+");
-            dodobot::robot_state.is_reporting_enabled = !dodobot::robot_state.is_reporting_enabled;
-            dodobot_serial::println_info("is_reporting_enabled: %d", dodobot::robot_state.is_reporting_enabled);
+            dodobot_ui::on_numpad(0);
             break;  // 0 10+
         case 0xb04f:
             dodobot_serial::println_info("IR: v");
@@ -335,6 +336,7 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
         case 0x08f7:
             dodobot_serial::println_info("IR: 1");
             // dodobot_gripper::toggle_gripper();
+            dodobot_ui::on_numpad(1);
             break;  // 1
         case 0x8877:
             dodobot_serial::println_info("IR: 2");
@@ -342,26 +344,33 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             // dodobot_speed_pid::update_setpointB(3000);
             // dodobot_chassis::set_motorA(255);
             // dodobot_chassis::set_motorB(255);
+            dodobot_ui::on_numpad(2);
             break;  // 2
-        case 0x48B7: dodobot_serial::println_info("IR: 3"); break;  // 3
+        case 0x48B7: dodobot_serial::println_info("IR: 3");
+            dodobot_ui::on_numpad(3);
+            break;  // 3
         case 0x28D7:
             dodobot_serial::println_info("IR: 4");
             // dodobot_speed_pid::update_setpointA(-3000);
             // dodobot_speed_pid::update_setpointB(3000);
+            dodobot_ui::on_numpad(4);
             break;  // 4
         case 0xA857:
             dodobot_serial::println_info("IR: 5");
             // dodobot_speed_pid::update_setpointA(0);
             // dodobot_speed_pid::update_setpointB(0);
+            dodobot_ui::on_numpad(5);
             break;  // 5
         case 0x6897:
             dodobot_serial::println_info("IR: 6");
             // dodobot_speed_pid::update_setpointA(3000);
             // dodobot_speed_pid::update_setpointB(-3000);
+            dodobot_ui::on_numpad(6);
             break;  // 6
         case 0x18E7:
             dodobot_serial::println_info("IR: 7");
             dodobot_sd::list_all_files();
+            dodobot_ui::on_numpad(7);
             break;  // 7
         case 0x9867:
             dodobot_serial::println_info("IR: 8");
@@ -369,10 +378,12 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             // dodobot_speed_pid::update_setpointB(-3000);
             // dodobot_chassis::set_motorA(-255);
             // dodobot_chassis::set_motorB(-255);
+            dodobot_ui::on_numpad(8);
             break;  // 8
         case 0x58A7:
             dodobot_serial::println_info("IR: 9");
             // dodobot_linear::home_stepper();
+            dodobot_ui::on_numpad(9);
             break;  // 9
         case 0xffff:  // repeat last command
             // dodobot_menu::repeat_key_event();
