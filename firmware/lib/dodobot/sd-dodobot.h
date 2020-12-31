@@ -31,6 +31,26 @@ namespace dodobot_sd
         }
     }
 
+    void list_dir(String dirname)
+    {
+        if (!initialized) {
+            return;
+        }
+        File root = SD.open(dirname.c_str());
+
+        while (true) {
+            File entry = root.openNextFile();
+            if (!entry) {
+                break;
+            }
+
+            if (!entry.isDirectory()) {
+                DODOBOT_SERIAL_WRITE_BOTH("listdir", "sd", entry.name(), entry.size());
+            }
+            entry.close();
+        }
+    }
+
     void list_all_files()
     {
         if (!initialized) {

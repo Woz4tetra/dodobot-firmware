@@ -272,6 +272,11 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
             dodobot_sd::close_file();
         }
     }
+    else if (category.equals("listdir"))
+    {
+        CHECK_SEGMENT(serial_obj, -1);
+        dodobot_sd::list_dir(String(serial_obj->get_segment()));
+    }
 }
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
