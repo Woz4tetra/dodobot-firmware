@@ -1,4 +1,5 @@
-
+// Trust me, I tried to split this into multiple files.
+// I couldn't get the compiler to cooperate
 #pragma once
 
 #include "serial-dodobot.h"
@@ -86,6 +87,237 @@ namespace dodobot_ui
         ViewController* overlay;
     };
 
+    const int max_num_entries = 20;
+    struct MenuEntry {
+        String name;
+        void (*callback)();
+    };
+    struct MenuBlank {
+        int index;
+        uint16_t h;
+    };
+    class ScrollingMenu
+    {
+    public:
+        int16_t x0, y0;
+        uint16_t menu_w, entry_h;
+
+        bool show_numbers;
+        int16_t text_size;
+
+        ScrollingMenu(int16_t x = 0, int16_t y = 0, uint16_t w = 0, uint16_t h = 0, bool show_numbers = false, int16_t text_size = 1)
+        {
+            x0 = x;
+            y0 = y;
+            menu_w = w;
+            entry_h = h;
+
+            menu_h = 0;
+
+            this->show_numbers = show_numbers;
+            this->text_size = text_size;
+            entries = new MenuEntry[max_num_entries];
+            blanks = new MenuBlank[max_num_entries];
+            num_entries = 0;
+            num_blanks = 0;
+        }
+
+        int get_selected() {
+            return selected_index;
+        }
+
+        int add_entry(String name, void (*callback)())
+        {
+            MenuEntry entry;
+            entry.name = name;
+            entry.callback = callback;
+            return add_entry(entry);
+        }
+
+        int add_entry(MenuEntry entry)
+        {
+            entries[num_entries++] = entry;
+            return num_entries;
+        }
+
+        void add_blank(uint16_t h, int index = -1)
+        {
+            MenuBlank blank;
+            if (index == -1) {
+                index = num_entries - 1;
+            }
+            else {
+                if (index < 0 || index >= num_entries) {
+                    return;
+                }
+            }
+            blank.index = index;
+            blank.h = h;
+            add_blank(blank);
+        }
+
+        void add_blank(MenuBlank blank) {
+            blanks[num_blanks++] = blank;
+        }
+
+        void on_up() {
+            select(selected_index - 1);
+        }
+
+        void on_down() {
+            select(selected_index + 1);
+        }
+
+        void on_enter() {
+            entries[selected_index].callback();
+        }
+
+        void select(int index)
+        {
+            selected_index = index;
+            if (selected_index == -1) {
+                return;
+            }
+            if (selected_index < 0) {
+                selected_index = 0;
+            }
+            if (selected_index >= num_entries) {
+                selected_index = num_entries - 1;
+            }
+
+            if (selected_index < in_view_start) {
+                in_view_stop -= in_view_start - selected_index;
+                in_view_start = selected_index;
+            }
+            if (selected_index >= in_view_stop) {
+                in_view_start += selected_index - (in_view_stop - 1);
+                in_view_stop = selected_index + 1;
+            }
+            draw();
+        }
+
+        void deselect() {
+            selected_index = -1;
+        }
+
+        void on_load()
+        {
+            if (menu_w == 0) {
+                menu_w = tft.width() - x0 - 1;
+            }
+            if (entry_h == 0) {
+                entry_h = 10;
+            }
+
+            compute_stop_index();
+            draw();
+        }
+
+        int index_has_blank(int index) {
+            for (int blank_index = 0; blank_index < num_blanks; blank_index++) {
+                if (blanks[blank_index].index == index) {
+                    dodobot_serial::println_info("blank index: %d -> %d", blank_index, index);
+                    return blank_index;
+                }
+            }
+            return -1;
+        }
+
+        void on_unload() {
+
+        }
+        void draw() {
+            tft.setTextSize(text_size);
+            uint16_t text_w, text_h;
+            int16_t draw_x;
+            uint16_t draw_w;
+
+            dodobot_display::textBounds("  ", text_w, text_h);
+            if (show_numbers) {
+                text_w += 2;
+                draw_x = x0 + text_w;
+                draw_w = menu_w - text_w;
+            }
+            else {
+                draw_x = x0 - 1;
+                draw_w = menu_w;
+            }
+            int16_t draw_y = y0;
+
+            if (in_view_stop < in_view_start) {
+                in_view_stop = in_view_start;
+                dodobot_serial::println_error("ScrollingMenu: Stop index is less than start index!");
+            }
+
+            int16_t rect_x = draw_x - 2;
+            tft.fillRect(rect_x, y0, menu_w, menu_h, ST77XX_BLACK);
+
+            for (int index = in_view_start; index < in_view_stop; index++)
+            {
+                if (show_numbers) {
+                    tft.setCursor(x0, draw_y);
+                    tft.print(String(index + 1));
+                }
+
+                tft.setCursor(draw_x, draw_y);
+                tft.print(entries[index].name);
+
+                int16_t rect_y = draw_y + (text_h - entry_h) / 2 - 1;
+                uint16_t rect_h = entry_h + 2;
+
+                if (selected_index != prev_selected_index && index == prev_selected_index) {
+                    tft.drawRect(rect_x, rect_y, draw_w, rect_h, ST77XX_BLACK);
+                }
+                if (index == selected_index) {
+                    tft.drawRect(rect_x, rect_y, draw_w, rect_h, ST77XX_WHITE);
+                }
+
+                draw_y += entry_h;
+                int blank_index = index_has_blank(index);
+                if (blank_index != -1) {
+                    draw_y += blanks[blank_index].h;
+                }
+
+            }
+            prev_selected_index = selected_index;
+        }
+
+    private:
+        MenuEntry* entries;
+        int num_entries;
+
+        MenuBlank* blanks;
+        int num_blanks;
+
+        int selected_index = 0;
+        int prev_selected_index = -1;
+        int in_view_start = 0;  // inclusive index
+        int in_view_stop = 0;  // exclusive index
+
+        uint16_t menu_h;
+
+        void compute_stop_index()
+        {
+            int draw_y = 0;
+            for (int index = 0; index < num_entries; index++) {
+                if (index == in_view_start) {
+                    draw_y = y0;
+                }
+                draw_y += entry_h;
+                in_view_stop = index;
+                int blank_index = index_has_blank(index);
+                if (blank_index != -1) {
+                    draw_y += blanks[blank_index].h;
+                }
+                if (draw_y >= tft.height() - 1) {
+                    break;
+                }
+            }
+            menu_h = draw_y;
+            in_view_stop++;
+        }
+    };
+
     const size_t max_num_views = 100;
     size_t num_views = 0;
     ViewController* views[max_num_views];
@@ -153,6 +385,7 @@ namespace dodobot_ui
         notif.spent = false;
         return notif;
     }
+    void notify(NotificationLevel level, String text, uint32_t timeout);
 
     template <class T>
     class Queue
@@ -273,30 +506,29 @@ namespace dodobot_ui
             }
             int index = front;
             int seq_index = 0;
-            bool start_found = false;
             while (index != back)
             {
-                if (!start_found) {
+                if (buffer[index] == sequence[seq_index]) {
+                    seq_index++;
+                }
+                else {
+                    seq_index = 0;
+
+                    // edge case for if the current mismatch is actually the start of a sequence
                     if (buffer[index] == sequence[seq_index]) {
-                        start_found = true;
                         seq_index++;
                     }
                 }
-                else {
-                    if (buffer[index] != sequence[seq_index]) {
-                        return false;
-                    }
-                    seq_index++;
-                }
+
                 index++;
                 if (index >= max_len) {
                     index = 0;
                 }
                 if (seq_index >= seq_len) {
-                    return true;
+                    break;
                 }
             }
-            if (start_found) {
+            if (seq_index == seq_len - 1) {
                 return buffer[index] == sequence[seq_index];
             }
             return false;
@@ -412,6 +644,8 @@ namespace dodobot_ui
         int battery_V_cy;
         int battery_mA_cy;
 
+        int notif_box_x = 0;
+        int notif_box_y = 0;
         int notif_box_width = 70;
         int notif_box_height = 5;
         int notif_height_offset = 3;
@@ -467,6 +701,7 @@ namespace dodobot_ui
                 text = queue.get_index(current_notif_index).text;
 
                 if (CURRENT_TIME - notif_timer > queue.get_index(current_notif_index).timeout) {
+                    clear_notif_bar();
                     queue.set_spent(current_notif_index);
                     current_notif_index = -1;
                 }
@@ -502,20 +737,20 @@ namespace dodobot_ui
             if (current_notif_index == -1) {
                 return;
             }
-            int16_t x = (width - notif_box_width) / 2;
-            int16_t y = (height + text_h) / 2 + notif_height_offset;
-            tft.fillRect(x, y, notif_box_width, notif_box_height, ST77XX_GRAY);
+            notif_box_x = (width - notif_box_width) / 2;
+            notif_box_y = (height + text_h) / 2 + notif_height_offset;
+            tft.fillRect(notif_box_x, notif_box_y, notif_box_width, notif_box_height, ST77XX_GRAY);
 
             uint32_t notif_time = queue.get_index(current_notif_index).timeout;
             uint32_t dt = CURRENT_TIME - notif_timer;
             uint16_t w = (uint16_t)(notif_box_width * (1.0 - (double)dt / notif_time));
-            if (w <= 2) {
-                tft.fillRect(x, y, notif_box_width, notif_box_height, ST77XX_BLACK);
-            }
-            else {
-                tft.fillRect(x, y, w, notif_box_height, notif_color);
-            }
+            tft.fillRect(notif_box_x, notif_box_y, w, notif_box_height, notif_color);
         }
+
+        void clear_notif_bar() {
+            tft.fillRect(notif_box_x, notif_box_y, notif_box_width, notif_box_height, ST77XX_BLACK);
+        }
+
         void draw_status_icons()
         {
             if (prev_reporting != dodobot::robot_state.is_reporting_enabled)
@@ -737,7 +972,7 @@ namespace dodobot_ui
             }
             number_sequence->queue(number);
             if (number_sequence->check_sequence(breakout_sequence, breakout_seq_len)) {
-                for (size_t i = 0; i < breakout_seq_len; i++) {
+                for (int i = 0; i < num_seq_len; i++) {
                     number_sequence->deque();
                 }
                 load("breakout");
@@ -1016,43 +1251,179 @@ namespace dodobot_ui
         void on_enter()  {}
     };
 
+    void load_drive_motor_screen() {
+        dodobot_serial::println_info("drive-system");
+        load("drive-system");
+    }
+    void load_linear_stepper_screen() {
+        dodobot_serial::println_info("linear-system");
+        load("linear-system");
+    }
+    void load_gripper_screen() {
+        dodobot_serial::println_info("gripper-system");
+        load("gripper-system");
+    }
+    void load_camera_screen() {
+        dodobot_serial::println_info("camera-system");
+        load("camera-system");
+    }
+    void load_system_info_screen() {
+        dodobot_serial::println_info("info-system");
+        load("info-system");
+    }
+
     class SystemScreenController : public ViewWithOverlayController
     {
     public:
         SystemScreenController(ViewController* topbar) : ViewWithOverlayController(topbar) {
-
+            menu = new ScrollingMenu();
+            menu->show_numbers = true;
+            menu->add_entry("Drive motors", load_drive_motor_screen);
+            menu->add_entry("Linear stepper", load_linear_stepper_screen);
+            menu->add_entry("Gripper", load_gripper_screen);
+            menu->add_entry("Camera", load_camera_screen);
+            menu->add_entry("System info", load_system_info_screen);
         }
 
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
         void draw_with_overlay() {
-            dodobot_sd::drawGIFframe();
+            // dodobot_sd::drawGIFframe();
         }
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
-            dodobot_sd::loadGIF("CHANSEY.GIF");
-            dodobot_sd::setGIFoffset(0, topbar()->get_height());
+            int border = 5;
+            menu->x0 = border;
+            menu->y0 = topbar()->get_height() + border;
+            menu->menu_w = tft.width() - menu->x0 - border;
+            menu->entry_h = 15;
+            menu->on_load();
+
+            // dodobot_sd::loadGIF("CHANSEY.GIF");
+            // dodobot_sd::setGIFoffset(0, topbar()->get_height());
         }
 
         void on_unload_with_overlay() {
-            dodobot_sd::closeGIF();
+            // dodobot_sd::closeGIF();
+            menu->on_unload();
         }
-        void on_up()  {}
-        void on_down()  {}
+        void on_up() {
+            menu->on_up();
+        }
+        void on_down() {
+            menu->on_down();
+        }
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
             load("main-menu");
         }
-        void on_enter()  {}
+        void on_enter() {
+            menu->on_enter();
+        }
+        void on_numpad(int number) {
+            if (number == 0) {
+                number = 10;
+            }
+            menu->select(number - 1);
+        }
+
+    private:
+        ScrollingMenu* menu;
     };
+
+    void shutdown_callback()
+    {
+        notify(INFO, "Shutting down", 1000);
+        dodobot::signal_shutdown();
+    }
+
+    void reboot_callback()
+    {
+        notify(INFO, "Rebooting", 1000);
+        dodobot::signal_reboot();
+    }
+
+    void restart_ros_callback()
+    {
+        notify(INFO, "Relaunch ROS", 1000);
+        dodobot::signal_restart_ros();
+    }
+
+    void restart_client_callback()
+    {
+        notify(INFO, "Relaunch client", 1000);
+        dodobot::signal_restart_client();
+    }
+
+    void relaunch_system_callback()
+    {
+        notify(INFO, "Relaunch system", 1000);
+        dodobot::signal_restart_microcontroller();
+    }
 
     class ShutdownScreenController : public ViewWithOverlayController
     {
     public:
         ShutdownScreenController(ViewController* topbar) : ViewWithOverlayController(topbar) {
+            menu = new ScrollingMenu();
+            menu->show_numbers = true;
+            menu->add_entry("Shutdown", shutdown_callback);
+            menu->add_entry("Reboot", reboot_callback);
+            menu->add_entry("Relaunch ROS", restart_ros_callback);
+            menu->add_entry("Relaunch client", restart_client_callback);
+            menu->add_entry("Relaunch system", relaunch_system_callback);
+        }
+
+        TopbarController* topbar() {
+            return (TopbarController*) overlay;
+        }
+        void draw_with_overlay()  {}
+        void on_load_with_overlay()
+        {
+            topbar()->fillBottomScreen();
+            int border = 5;
+            menu->x0 = border;
+            menu->y0 = topbar()->get_height() + border;
+            menu->menu_w = tft.width() - menu->x0 - border;
+            menu->entry_h = 15;
+            menu->on_load();
+        }
+
+        void on_unload_with_overlay() {
+            menu->on_unload();
+        }
+        void on_up() {
+            menu->on_up();
+        }
+        void on_down() {
+            menu->on_down();
+        }
+        void on_left()  {}
+        void on_right()  {}
+        void on_back()  {
+            load("main-menu");
+        }
+        void on_enter() {
+            menu->on_enter();
+        }
+        void on_numpad(int number) {
+            if (number == 0) {
+                number = 10;
+            }
+            menu->select(number - 1);
+        }
+    private:
+        ScrollingMenu* menu;
+    };
+
+
+    class DriveSystemController : public ViewWithOverlayController
+    {
+    public:
+        DriveSystemController(ViewController* topbar) : ViewWithOverlayController(topbar) {
 
         }
 
@@ -1071,7 +1442,115 @@ namespace dodobot_ui
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
-            load("main-menu");
+            load("system");
+        }
+        void on_enter()  {}
+    };
+
+    class LinearSystemController : public ViewWithOverlayController
+    {
+    public:
+        LinearSystemController(ViewController* topbar) : ViewWithOverlayController(topbar) {
+
+        }
+
+        TopbarController* topbar() {
+            return (TopbarController*) overlay;
+        }
+        void draw_with_overlay()  {}
+        void on_load_with_overlay()
+        {
+            topbar()->fillBottomScreen();
+        }
+
+        void on_unload_with_overlay()  {}
+        void on_up()  {}
+        void on_down()  {}
+        void on_left()  {}
+        void on_right()  {}
+        void on_back()  {
+            load("system");
+        }
+        void on_enter()  {}
+    };
+
+    class GripperSystemController : public ViewWithOverlayController
+    {
+    public:
+        GripperSystemController(ViewController* topbar) : ViewWithOverlayController(topbar) {
+
+        }
+
+        TopbarController* topbar() {
+            return (TopbarController*) overlay;
+        }
+        void draw_with_overlay()  {}
+        void on_load_with_overlay()
+        {
+            topbar()->fillBottomScreen();
+        }
+
+        void on_unload_with_overlay()  {}
+        void on_up()  {}
+        void on_down()  {}
+        void on_left()  {}
+        void on_right()  {}
+        void on_back()  {
+            load("system");
+        }
+        void on_enter()  {}
+    };
+
+    class CameraSystemController : public ViewWithOverlayController
+    {
+    public:
+        CameraSystemController(ViewController* topbar) : ViewWithOverlayController(topbar) {
+
+        }
+
+        TopbarController* topbar() {
+            return (TopbarController*) overlay;
+        }
+        void draw_with_overlay()  {}
+        void on_load_with_overlay()
+        {
+            topbar()->fillBottomScreen();
+        }
+
+        void on_unload_with_overlay()  {}
+        void on_up()  {}
+        void on_down()  {}
+        void on_left()  {}
+        void on_right()  {}
+        void on_back()  {
+            load("system");
+        }
+        void on_enter()  {}
+    };
+
+    class InfoSystemController : public ViewWithOverlayController
+    {
+    public:
+        InfoSystemController(ViewController* topbar) : ViewWithOverlayController(topbar) {
+
+        }
+
+        TopbarController* topbar() {
+            return (TopbarController*) overlay;
+        }
+        void draw_with_overlay()  {}
+        void on_load_with_overlay()
+        {
+            topbar()->fillBottomScreen();
+        }
+
+        void on_unload_with_overlay()  {}
+        void on_up()  {}
+        void on_down()  {}
+        void on_left()  {}
+        void on_right()  {}
+        void on_back()  {
+            load("system");
         }
         void on_enter()  {}
     };
@@ -1116,16 +1595,31 @@ namespace dodobot_ui
     SystemScreenController* system_screen = new SystemScreenController(topbar);
     ShutdownScreenController* shutdown_screen = new ShutdownScreenController(topbar);
     BreakoutController* breakout_screen = new BreakoutController;
+    DriveSystemController* drive_system_screen = new DriveSystemController(topbar);
+    LinearSystemController* linear_system_screen = new LinearSystemController(topbar);
+    GripperSystemController* gripper_system_screen = new GripperSystemController(topbar);
+    CameraSystemController* camera_system_screen = new CameraSystemController(topbar);
+    InfoSystemController* info_system_screen = new InfoSystemController(topbar);
+
 
     void init()
     {
         add_view("splash", splash);
+
         add_view("main-menu", main_menu);
         add_view(main_menu->view_name(NETWORK), network_screen);
         add_view(main_menu->view_name(ROBOT), robot_screen);
         add_view(main_menu->view_name(SYSTEM), system_screen);
         add_view(main_menu->view_name(SHUTDOWN), shutdown_screen);
+
         add_view("breakout", breakout_screen);
+
+        add_view("drive-system", drive_system_screen);
+        add_view("linear-system", linear_system_screen);
+        add_view("gripper-system", gripper_system_screen);
+        add_view("camera-system", camera_system_screen);
+        add_view("info-system", info_system_screen);
+
         load("splash");
         dodobot_serial::println_info("UI ready");
     }

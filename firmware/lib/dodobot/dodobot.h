@@ -22,8 +22,31 @@ namespace dodobot
 
     void soft_restart()
     {
-        DATA_SERIAL.end();  // clears the serial monitor  if used
+        INFO_SERIAL.end();  // clears the serial monitor if used
+        DATA_SERIAL.end();
         SCB_AIRCR = 0x05FA0004;  // write value for restart
+    }
+
+    void signal_shutdown() {
+        DODOBOT_SERIAL_WRITE_BOTH("control", "sd", "dodobot", 0);
+    }
+
+    void signal_reboot() {
+        DODOBOT_SERIAL_WRITE_BOTH("control", "sd", "dodobot", 1);
+    }
+
+    void signal_restart_ros() {
+        DODOBOT_SERIAL_WRITE_BOTH("control", "sd", "dodobot", 2);
+    }
+
+    void signal_restart_client() {
+        DODOBOT_SERIAL_WRITE_BOTH("control", "sd", "dodobot", 3);
+    }
+
+    void signal_restart_microcontroller() {
+        DODOBOT_SERIAL_WRITE_BOTH("control", "sd", "dodobot", 4);
+        delay(500);
+        soft_restart();
     }
 
     struct state {
