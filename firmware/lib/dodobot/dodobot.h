@@ -7,7 +7,8 @@
 #include "serial-dodobot.h"
 
 #define CURRENT_TIME millis()
-#define ROBOT_NAME "chansey"
+const String ROBOT_NAME = "chansey";
+const String DODOBOT_VERSION = "v0.0";
 
 namespace dodobot
 {

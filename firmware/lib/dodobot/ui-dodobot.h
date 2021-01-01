@@ -169,20 +169,26 @@ namespace dodobot_ui
         }
 
         void on_enter() {
+            if (selected_index < 0) {
+                return;
+            }
+            if (selected_index >= num_entries) {
+                return;
+            }
             entries[selected_index].callback();
         }
 
         void select(int index)
         {
             selected_index = index;
-            if (selected_index == -1) {
+            if (selected_index == -2) {
                 return;
             }
             if (selected_index < 0) {
-                selected_index = 0;
+                selected_index = num_entries - 1;
             }
             if (selected_index >= num_entries) {
-                selected_index = num_entries - 1;
+                selected_index = 0;
             }
 
             if (selected_index < in_view_start) {
@@ -197,7 +203,7 @@ namespace dodobot_ui
         }
 
         void deselect() {
-            selected_index = -1;
+            selected_index = -2;
         }
 
         void on_load()
@@ -216,7 +222,6 @@ namespace dodobot_ui
         int index_has_blank(int index) {
             for (int blank_index = 0; blank_index < num_blanks; blank_index++) {
                 if (blanks[blank_index].index == index) {
-                    dodobot_serial::println_info("blank index: %d -> %d", blank_index, index);
                     return blank_index;
                 }
             }
@@ -290,7 +295,7 @@ namespace dodobot_ui
         int num_blanks;
 
         int selected_index = 0;
-        int prev_selected_index = -1;
+        int prev_selected_index = -2;
         int in_view_start = 0;  // inclusive index
         int in_view_stop = 0;  // exclusive index
 
@@ -1289,7 +1294,6 @@ namespace dodobot_ui
             return (TopbarController*) overlay;
         }
         void draw_with_overlay() {
-            // dodobot_sd::drawGIFframe();
         }
         void on_load_with_overlay()
         {
@@ -1300,13 +1304,9 @@ namespace dodobot_ui
             menu->menu_w = tft.width() - menu->x0 - border;
             menu->entry_h = 15;
             menu->on_load();
-
-            // dodobot_sd::loadGIF("CHANSEY.GIF");
-            // dodobot_sd::setGIFoffset(0, topbar()->get_height());
         }
 
         void on_unload_with_overlay() {
-            // dodobot_sd::closeGIF();
             menu->on_unload();
         }
         void on_up() {
@@ -1538,10 +1538,17 @@ namespace dodobot_ui
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
-        void draw_with_overlay()  {}
+        void draw_with_overlay() {
+            tft.setCursor(0, topbar()->get_height() + 5);
+            tft.print("Serial: " + ROBOT_NAME); tft.print("\n");
+            tft.print(DODOBOT_VERSION); tft.print("\n");
+            dodobot_sd::drawGIFframe();
+        }
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
+            dodobot_sd::loadGIF("CHANSEY.GIF");
+            dodobot_sd::setGIFoffset(tft.width() - dodobot_sd::gif.getCanvasWidth(), topbar()->get_height());
         }
 
         void on_unload_with_overlay()  {}
@@ -1550,9 +1557,11 @@ namespace dodobot_ui
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
+            dodobot_sd::closeGIF();
             load("system");
         }
         void on_enter()  {}
+    private:
     };
 
 
