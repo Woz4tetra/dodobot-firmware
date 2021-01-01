@@ -2,11 +2,18 @@
 // I couldn't get the compiler to cooperate
 #pragma once
 
+#include <JPEGDecoder.h>  // JPEG decoder library
+
 #include "serial-dodobot.h"
 #include "sd-dodobot.h"
 #include "display-dodobot.h"
 #include "latch-circuit-dodobot.h"
 #include "breakout-dodobot.h"
+#include "chassis-dodobot.h"
+#include "linear-dodobot.h"
+#include "tilter-dodobot.h"
+#include "speed-pid-dodobot.h"
+#include "gripper-dodobot.h"
 
 
 using namespace dodobot_display;
@@ -838,7 +845,7 @@ namespace dodobot_ui
             tft.fillRect(battery_x, batt_nub_y, 4, batt_nub_h, battery_nub_color);
 
             int stop_index = max(voltage_text.length(), current_text.length());
-            stop_index = max(stop_index, gauge_len);
+            stop_index = max(stop_index, gauge_len + 1);  // text can extend past gauge by 1
             for (int index = 0; index < stop_index; index++)
             {
                 int gauge_x = battery_x - single_char_w * (index + 1);
@@ -1171,6 +1178,12 @@ namespace dodobot_ui
     public:
         void draw() {
             dodobot_breakout::draw();
+            if (dodobot_chassis::is_bump1_active()) {
+                on_right();
+            }
+            if (dodobot_chassis::is_bump2_active()) {
+                on_left();
+            }
         }
         void on_load() {
             UI_DELAY_MS = dodobot_breakout::UPDATE_DELAY_MS;
@@ -1216,6 +1229,7 @@ namespace dodobot_ui
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
+            dodobot_sd::drawJPEG("DBSPLASH.JPG", 0, topbar()->get_height());
         }
 
         void on_unload_with_overlay()  {}
@@ -1430,21 +1444,63 @@ namespace dodobot_ui
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
-        void draw_with_overlay()  {}
+        void draw_with_overlay()
+        {
+            int y_offset = topbar()->get_height() + 5;
+            tft.setCursor(border_offset_w, y_offset); tft.println("A: " + String(dodobot_chassis::encA_pos) + "       ");
+            tft.setCursor(border_offset_w + drive_column_offset, y_offset); tft.println("B: " + String(dodobot_chassis::encB_pos) + "       "); y_offset += row_size * 2;
+
+            tft.setCursor(border_offset_w, y_offset); tft.println("c A: " + String(dodobot_chassis::motorA.getSpeed()) + "       ");
+            tft.setCursor(border_offset_w + drive_column_offset, y_offset); tft.println("B: " + String(dodobot_chassis::motorB.getSpeed()) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("t A: " + String((int)dodobot_speed_pid::motorA_pid.get_target()) + "       ");
+            tft.setCursor(border_offset_w + drive_column_offset, y_offset); tft.println("B: " + String((int)dodobot_speed_pid::motorB_pid.get_target()) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("m A: " + String((int)dodobot_chassis::enc_speedA) + "       ");
+            tft.setCursor(border_offset_w + drive_column_offset, y_offset); tft.println("B: " + String((int)dodobot_chassis::enc_speedB) + "       "); y_offset += row_size;
+
+            tft.setCursor(border_offset_w, y_offset); tft.println("L: " + String(dodobot_chassis::is_bump2_active()) + "       ");
+            tft.setCursor(border_offset_w + drive_column_offset, y_offset); tft.println("R: " + String(dodobot_chassis::is_bump1_active()) + "       "); y_offset += row_size;
+        }
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
         }
 
         void on_unload_with_overlay()  {}
-        void on_up()  {}
-        void on_down()  {}
-        void on_left()  {}
-        void on_right()  {}
+        void on_up() {
+            drive_robot_forward(3000.0);
+        }
+        void on_down() {
+            drive_robot_forward(-3000.0);
+        }
+        void on_left() {
+            rotate_robot(-2000.0);
+        }
+        void on_right() {
+            rotate_robot(2000.0);
+        }
         void on_back()  {
             load("system");
         }
-        void on_enter()  {}
+        void on_enter() {
+            drive_robot_forward(0.0);
+        }
+
+        void drive_robot_forward(double speed_tps)   // ticks per s
+        {
+            dodobot_speed_pid::update_setpointA(speed_tps);
+            dodobot_speed_pid::update_setpointB(speed_tps);
+        }
+
+        void rotate_robot(double speed_tps)   // ticks per s
+        {
+            dodobot_speed_pid::update_setpointA(speed_tps);
+            dodobot_speed_pid::update_setpointB(-speed_tps);
+        }
+    private:
+        int16_t border_offset_w = 3;
+        int16_t drive_column_offset = 80;
+        uint16_t row_size = 10;
+        double speed_tps = 3000.0;
     };
 
     class LinearSystemController : public ViewWithOverlayController
@@ -1457,21 +1513,56 @@ namespace dodobot_ui
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
-        void draw_with_overlay()  {}
+        void draw_with_overlay()
+        {
+            int y_offset = topbar()->get_height() + 5;
+            tft.setCursor(border_offset_w, y_offset); tft.println("step: " + String(dodobot_linear::stepper_pos) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("enc: " + String(dodobot_linear::raw_encoder_pos) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("enc as step: " + String(dodobot_linear::encoder_pos) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("diff: " + String(dodobot_linear::stepper_pos - dodobot_linear::encoder_pos) + ", " + String(dodobot_linear::ENCODER_POSITION_ERROR) + "       "); y_offset += row_size;
+
+            tft.setCursor(border_offset_w, y_offset); tft.println("linear pos mm: " + String(dodobot_linear::to_linear_pos(dodobot_linear::stepper_pos)) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("vel: " + String(dodobot_linear::stepper_vel) + "            "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("error: " + String(dodobot_linear::is_errored()) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("moving: " + String(dodobot_linear::is_moving) + "       "); y_offset += row_size;
+
+            tft.setCursor(border_offset_w, y_offset);
+            switch (dodobot_linear::planning_mode) {
+                case TicPlanningMode::Off: tft.println("mode: Off       "); break;
+                case TicPlanningMode::TargetPosition: tft.println("mode: Position       "); break;
+                case TicPlanningMode::TargetVelocity: tft.println("mode: Velocity       "); break;
+            }
+            y_offset += row_size;
+
+            tft.setCursor(border_offset_w, y_offset); tft.println("homed: " + String(dodobot_linear::is_homed) + "       "); y_offset += row_size;
+            // tft.setCursor(border_offset_w, y_offset); tft.println("microstep: " + String(dodobot_linear::microsteps) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("limit: " + String(dodobot_linear::is_home_pin_active()) + "       "); y_offset += row_size;
+        }
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
         }
 
         void on_unload_with_overlay()  {}
-        void on_up()  {}
-        void on_down()  {}
+
+        void on_up() {
+            dodobot_linear::set_position(dodobot_linear::target_position + 625 * dodobot_linear::microsteps);
+        }
+
+        void on_down() {
+            dodobot_linear::set_position(dodobot_linear::target_position - 625 * dodobot_linear::microsteps);
+        }
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
             load("system");
         }
-        void on_enter()  {}
+        void on_enter() {
+            dodobot_linear::home_stepper();
+        }
+    private:
+        int16_t border_offset_w = 3;
+        uint16_t row_size = 8;
     };
 
     class GripperSystemController : public ViewWithOverlayController
@@ -1484,48 +1575,106 @@ namespace dodobot_ui
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
-        void draw_with_overlay()  {}
+        void draw_with_overlay()
+        {
+            int y_offset = topbar()->get_height() + 5;
+            tft.setCursor(border_offset_w, y_offset); tft.println("L: " + String(dodobot_gripper::get_left_fsr()) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("R: " + String(dodobot_gripper::get_right_fsr()) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("pos: " + String(dodobot_gripper::gripper_pos) + "       "); y_offset += row_size;
+        }
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
         }
 
         void on_unload_with_overlay()  {}
-        void on_up()  {}
-        void on_down()  {}
-        void on_left()  {}
-        void on_right()  {}
+        void on_up() {
+            dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 10);
+        }
+
+        void on_down() {
+            dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 10);
+        }
+
+        void on_left() {
+            dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 1);
+        }
+        void on_right() {
+            dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 1);
+        }
         void on_back()  {
             load("system");
         }
-        void on_enter()  {}
+        void on_enter() {
+            dodobot_gripper::toggle_gripper(100);
+        }
+    private:
+        int16_t border_offset_w = 3;
+        uint16_t row_size = 10;
     };
 
     class CameraSystemController : public ViewWithOverlayController
     {
     public:
         CameraSystemController(ViewController* topbar) : ViewWithOverlayController(topbar) {
-
+            x0 = 0;
         }
 
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
-        void draw_with_overlay()  {}
+        void draw_with_overlay()
+        {
+            int y_offset = topbar()->get_height() + 5;
+            // tft.setTextColor(ST77XX_BLACK, ST77XX_BLACK);
+            tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+            tft.setCursor(border_offset_w, y_offset); tft.println("pos: " + String(dodobot_tilter::tilter_pos) + "       "); y_offset += row_size;
+
+
+            if (!image_updated) {
+                return;
+            }
+            image_updated = false;
+            dodobot_sd::drawJPEG("CAMERA.JPG", x0, y0);
+        }
+
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
+            y0 = topbar()->get_height();
+            on_update_image();
+            DODOBOT_SERIAL_WRITE_BOTH("recvimage", "d", 1);
         }
 
-        void on_unload_with_overlay()  {}
-        void on_up()  {}
-        void on_down()  {}
-        void on_left()  {}
-        void on_right()  {}
+        void on_unload_with_overlay() {
+            DODOBOT_SERIAL_WRITE_BOTH("recvimage", "d", 0);
+        }
+        void on_up() {
+            dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos + 40);
+        }
+        void on_down() {
+            dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos - 40);
+        }
+        void on_left() {
+            dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos + 5);
+        }
+        void on_right() {
+            dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos - 5);
+        }
         void on_back()  {
             load("system");
         }
-        void on_enter()  {}
+        void on_enter() {
+            dodobot_tilter::tilter_toggle();
+        }
+        void on_update_image() {
+            image_updated = true;
+        }
+    private:
+        bool image_updated = false;
+        int16_t x0, y0;
+        int16_t border_offset_w = 3;
+        uint16_t row_size = 10;
     };
 
     class InfoSystemController : public ViewWithOverlayController
@@ -1541,6 +1690,7 @@ namespace dodobot_ui
         void draw_with_overlay() {
             tft.setCursor(0, topbar()->get_height() + 5);
             tft.print("Serial: " + ROBOT_NAME); tft.print("\n");
+            tft.print("Author: " + ROBOT_AUTHOR); tft.print("\n");
             tft.print(DODOBOT_VERSION); tft.print("\n");
             dodobot_sd::drawGIFframe();
         }
@@ -1548,7 +1698,9 @@ namespace dodobot_ui
         {
             topbar()->fillBottomScreen();
             dodobot_sd::loadGIF("CHANSEY.GIF");
-            dodobot_sd::setGIFoffset(tft.width() - dodobot_sd::gif.getCanvasWidth(), topbar()->get_height());
+            dodobot_sd::setGIFoffset(
+                tft.width() - dodobot_sd::gif.getCanvasWidth(),
+                tft.height() - dodobot_sd::gif.getCanvasHeight());
         }
 
         void on_unload_with_overlay()  {}

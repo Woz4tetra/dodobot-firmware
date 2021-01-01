@@ -8,6 +8,7 @@
 
 #define CURRENT_TIME millis()
 const String ROBOT_NAME = "chansey";
+const String ROBOT_AUTHOR = "Ben Warwick";
 const String DODOBOT_VERSION = "v0.0";
 
 namespace dodobot

@@ -30,7 +30,7 @@ namespace dodobot_power_monitor
     float FULL_VOLTAGE = 12.15;
     float OK_VOLTAGE = 10.5;
     float LOW_VOLTAGE = 9.25;
-    float CRITICAL_VOLTAGE = 8.0;
+    float CRITICAL_VOLTAGE = 8.8;
 
     void setup_INA219()
     {
@@ -84,11 +84,11 @@ namespace dodobot_power_monitor
         else if (ina219_loadvoltage > LOW_VOLTAGE) {
             return 3;
         }
-        else if (ina219_loadvoltage <= LOW_VOLTAGE) {
-            return 2;
-        }
         else if (ina219_loadvoltage <= CRITICAL_VOLTAGE) {
             return 1;
+        }
+        else if (ina219_loadvoltage <= LOW_VOLTAGE) {
+            return 2;
         }
         else {
             return 0;

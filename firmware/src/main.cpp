@@ -10,9 +10,9 @@
 #include "chassis-dodobot.h"
 #include "speed-pid-dodobot.h"
 #include "latch-circuit-dodobot.h"
+#include "ui-dodobot.h"
 // #include "menu-dodobot.h"
 #include "breakout-dodobot.h"
-#include "ui-dodobot.h"
 #include "sd-dodobot.h"
 
 
@@ -37,6 +37,17 @@ void homing_routine()
     dodobot_linear::home_stepper();
     dodobot_serial::flush_read();
 }
+
+void dodobot_linear::send_event_callback(LinearEvent event) {
+    switch (event) {
+        case dodobot_linear::LinearEvent::HOMING_FAILED:  dodobot_ui::notify(dodobot_ui::ERROR, "Home failed", 5000); break;
+        case dodobot_linear::LinearEvent::NOT_ACTIVE:  dodobot_ui::notify(dodobot_ui::ERROR, "Not active", 5000); break;
+        case dodobot_linear::LinearEvent::NOT_HOMED:  dodobot_ui::notify(dodobot_ui::ERROR, "Not homed", 5000); break;
+        case dodobot_linear::LinearEvent::POSITION_ERROR:  dodobot_ui::notify(dodobot_ui::ERROR, "Position error", 5000); break;
+        default: break;
+    }
+}
+
 
 void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 {
@@ -270,6 +281,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         }
         if (segment_index == num_segments - 1) {
             dodobot_sd::close_file();
+            dodobot_ui::camera_system_screen->on_update_image();
         }
     }
     else if (category.equals("listdir"))

@@ -6,7 +6,6 @@
 
 #include "dodobot.h"
 #include "display-dodobot.h"
-#include "chassis-dodobot.h"
 
 
 namespace dodobot_breakout
@@ -569,12 +568,6 @@ namespace dodobot_breakout
     {
         if (all_destroyed) {
             return;
-        }
-        if (dodobot_chassis::is_bump1_active()) {
-            right_event();
-        }
-        if (dodobot_chassis::is_bump2_active()) {
-            left_event();
         }
         update_scoreboard();
 

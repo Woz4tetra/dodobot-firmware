@@ -13,6 +13,9 @@
 using namespace dodobot_display;
 
 
+#define minimum(a,b)     (((a) < (b)) ? (a) : (b))
+
+
 namespace dodobot_sd
 {
     const int chipSelect = BUILTIN_SDCARD;
@@ -377,6 +380,116 @@ namespace dodobot_sd
         }
         is_gif_loaded = false;
         gif.close();
+    }
+
+    // JPEGs
+
+    void printJPEGInfo()
+    {
+        dodobot_serial::println_info("JPEG image info");
+        dodobot_serial::println_info("  Width      : %d", JpegDec.width);
+        dodobot_serial::println_info("  Height     : %d", JpegDec.height);
+        dodobot_serial::println_info("  Components : %d", JpegDec.comps);
+        dodobot_serial::println_info("  MCU / row  : %d", JpegDec.MCUSPerRow);
+        dodobot_serial::println_info("  MCU / col  : %d", JpegDec.MCUSPerCol);
+        dodobot_serial::println_info("  Scan type  : %d", JpegDec.scanType);
+        dodobot_serial::println_info("  MCU width  : %d", JpegDec.MCUWidth);
+        dodobot_serial::println_info("  MCU height : %d", JpegDec.MCUHeight);
+    }
+
+    const uint32_t image_array_max_len = 0x10000;
+    uint8_t* image_array = new uint8_t[image_array_max_len];
+
+    void drawJPEG(const char* path, int16_t xpos, int16_t ypos)
+    {
+        File file = SD.open(path);
+        if (!file) {
+            dodobot_serial::println_error("Failed to open path: %s", path);
+        }
+
+        uint32_t image_array_size = 0;
+        while (file.available()) {
+        	image_array[image_array_size++] = file.read();
+        }
+        JpegDec.decodeArray(image_array, image_array_size);
+        printJPEGInfo();
+
+        // retrieve infomration about the image
+        uint16_t *pImg;
+        uint16_t mcu_w = JpegDec.MCUWidth;
+        uint16_t mcu_h = JpegDec.MCUHeight;
+        uint32_t max_x = JpegDec.width;
+        uint32_t max_y = JpegDec.height;
+
+        // Jpeg images are drawn as a set of image block (tiles) called Minimum Coding Units (MCUs)
+        // Typically these MCUs are 16x16 pixel blocks
+        // Determine the width and height of the right and bottom edge image blocks
+        uint32_t min_w = minimum(mcu_w, max_x % mcu_w);
+        uint32_t min_h = minimum(mcu_h, max_y % mcu_h);
+
+        // save the current image block size
+        uint32_t win_w = mcu_w;
+        uint32_t win_h = mcu_h;
+
+        uint32_t screen_w = tft.width();
+        uint32_t screen_h = tft.height();
+
+        // record the current time so we can measure how long it takes to draw an image
+        uint32_t drawTime = millis();
+
+        // save the coordinate of the right and bottom edges to assist image cropping
+        // to the screen size
+        max_x += xpos;
+        max_y += ypos;
+
+        // read each MCU block until there are no more
+        tft.startWrite();
+        // tft.setAddrWindow(xpos, ypos, minimum(max_x, screen_w), minimum(max_y, screen_h));
+        while ( JpegDec.read()) {
+
+            // save a pointer to the image block
+            pImg = JpegDec.pImage;
+
+            // calculate where the image block should be drawn on the screen
+            unsigned int mcu_x = JpegDec.MCUx * mcu_w + xpos;
+            unsigned int mcu_y = JpegDec.MCUy * mcu_h + ypos;
+
+            // check if the image block size needs to be changed for the right and bottom edges
+            if (mcu_x + mcu_w <= max_x) { win_w = mcu_w; }
+            else { win_w = min_w; }
+
+            if (mcu_y + mcu_h <= max_y) { win_h = mcu_h; }
+            else { win_h = min_h; }
+
+            // calculate how many pixels must be drawn
+            uint32_t mcu_pixels = win_w * win_h;
+
+            // draw image block if it will fit on the screen
+            if ( ( mcu_x + win_w) <= screen_w && ( mcu_y + win_h) <= screen_h) {
+                // open a window onto the screen to paint the pixels into
+                // tft.startWrite();
+                tft.setAddrWindow(mcu_x, mcu_y, win_w, win_h);
+                // push all the image block pixels to the screen
+                while (mcu_pixels--) {
+                    tft.writeColor(*pImg++, 1); // Send to TFT 16 bits at a time
+                }
+                // tft.endWrite();
+            }
+
+            // stop drawing blocks if the bottom of the screen has been reached
+            // the abort function will close the file
+            else if ( ( mcu_y + win_h) >= screen_h) {
+                JpegDec.abort();
+            }
+
+        }
+        tft.endWrite();
+
+        // calculate how long it took to draw the image
+        drawTime = millis() - drawTime; // Calculate the time it took
+
+        // print the results to the serial port
+        dodobot_serial::println_info("Total render time was: %d ms", drawTime);
     }
 }
 
