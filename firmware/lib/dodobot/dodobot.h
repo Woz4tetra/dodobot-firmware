@@ -22,6 +22,10 @@ namespace dodobot
     uint32_t loop_report_sum = 0;
     uint32_t loop_report_counter = 0;
 
+    String network_info;
+    const int max_networks_len = 20;
+    String* networks = new String[max_networks_len];
+
     void soft_restart()
     {
         INFO_SERIAL.end();  // clears the serial monitor if used
@@ -112,7 +116,34 @@ namespace dodobot
 
         loop_report_sum = 0;
         loop_report_counter = 0;
+    }
 
+    void parse_network_list(String network_list)
+    {
+        int prev_index = -1;
+        int str_index = 0;
+        int index = 0;
+        String line;
+        int str_len = network_list.length();
+        while (str_index <= str_len)
+        {
+            int next_index = network_list.indexOf('\n', str_index);
+            if (next_index == -1) {
+                next_index = str_len;
+            }
+            String line = network_list.substring(str_index, next_index);
+            str_index = next_index + 1;
+
+            if (index == prev_index) {
+                return;
+            }
+            prev_index = index;
+
+            networks[index++] = line;
+            if (index >= max_networks_len) {
+                return;
+            }
+        }
     }
 }
 

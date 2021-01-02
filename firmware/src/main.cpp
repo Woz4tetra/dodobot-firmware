@@ -11,7 +11,6 @@
 #include "speed-pid-dodobot.h"
 #include "latch-circuit-dodobot.h"
 #include "ui-dodobot.h"
-// #include "menu-dodobot.h"
 #include "breakout-dodobot.h"
 #include "sd-dodobot.h"
 
@@ -234,18 +233,18 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     else if (category.equals("date")) {
         CHECK_SEGMENT(serial_obj, -1);
-        // dodobot_menu::date_string = serial_obj->get_segment();
-        // dodobot_menu::prev_date_str_update = CURRENT_TIME;
         dodobot_ui::update_date(serial_obj->get_segment());
     }
 
     else if (category.equals("network")) {
-        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_ip = serial_obj->get_segment();
-        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_netmask = serial_obj->get_segment();
-        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_broadcast = serial_obj->get_segment();
-        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_name = serial_obj->get_segment();
-        // CHECK_SEGMENT(serial_obj, -1); dodobot_menu::network_error = serial_obj->get_segment();
-        // dodobot_menu::network_str_update = CURRENT_TIME;
+        CHECK_SEGMENT(serial_obj, 4);  int32_t state = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, -1); dodobot::network_info = serial_obj->get_segment();
+        dodobot_serial::println_info("Received network info. Wifi state: %d", state);
+        dodobot_ui::network_screen->draw_network_info();
+        dodobot_ui::network_screen->set_wifi_state((bool)state);
+    }
+    else if (category.equals("netlist")) {
+        CHECK_SEGMENT(serial_obj, -1); dodobot::parse_network_list(serial_obj->get_segment());
     }
 
     else if (category.equals("breakout")) {

@@ -144,7 +144,25 @@ namespace dodobot_ui
         int add_entry(MenuEntry entry)
         {
             entries[num_entries++] = entry;
-            return num_entries;
+            return num_entries - 1;
+        }
+
+        bool set_entry(int index, const char* name)
+        {
+            if (index < 0 || index >= num_entries) {
+                return false;
+            }
+            entries[index].name = String(name);
+            return true;
+        }
+
+        bool set_entry(int index, MenuEntry entry)
+        {
+            if (index < 0 || index >= num_entries) {
+                return false;
+            }
+            entries[index] = entry;
+            return true;
         }
 
         void add_blank(uint16_t h, int index = -1)
@@ -1215,32 +1233,130 @@ namespace dodobot_ui
         }
     };
 
+    bool wifi_is_on = true;
+    void toggle_wifi_callback()
+    {
+        String text = "Wifi ";
+        if (wifi_is_on) {
+            text += "off";
+        }
+        else {
+            text += "on";
+        }
+        notify(INFO, text, 1000);
+        dodobot_serial::info->write("network", "dd", 0, !wifi_is_on);
+    }
+
+    void load_connect_screen()
+    {
+        load("connect-network");
+    }
+
+    void refresh_network_list()
+    {
+        dodobot_serial::println_info("Requesting network refresh");
+        dodobot_serial::info->write("network", "d", 1);
+    }
+
     class NetworkScreenController : public ViewWithOverlayController
     {
     public:
         NetworkScreenController(ViewController* topbar) : ViewWithOverlayController(topbar) {
+            menu = new ScrollingMenu();
+            menu->add_entry("Refresh", refresh_network_list);
+            menu->add_entry("Connect", load_connect_screen);
+            wifi_entry_index = menu->add_entry("Wifi off", toggle_wifi_callback);
+        }
 
+        void set_wifi_state(bool wifi_state)
+        {
+            wifi_is_on = wifi_state;
+            if (wifi_is_on) {
+                menu->set_entry(wifi_entry_index, "Wifi off");
+            }
+            else {
+                menu->set_entry(wifi_entry_index, "Wifi on");
+            }
+            menu->draw();
+            draw_network_info();
         }
 
         TopbarController* topbar() {
             return (TopbarController*) overlay;
         }
         void draw_with_overlay()  {}
+
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
-            dodobot_sd::drawJPEG("DBSPLASH.JPG", 0, topbar()->get_height());
+            refresh_network_list();
+            int border = 3;
+            menu->x0 = border;
+            menu->y0 = topbar()->get_height() + border + 1;
+            menu->menu_w = 52;
+            menu->entry_h = 15;
+            menu->on_load();
+            draw_network_info();
         }
 
-        void on_unload_with_overlay()  {}
-        void on_up()  {}
-        void on_down()  {}
+        void draw_network_info()
+        {
+            int16_t text_x = menu->menu_w + menu->x0;
+            int16_t text_y = menu->y0;
+            int prev_index = -1;
+            int str_index = 0;
+            int str_len = dodobot::network_info.length();
+
+            tft.fillRect(text_x, text_y, tft.width() - text_x, tft.height() - text_y, ST77XX_BLACK);
+            while (str_index < str_len)
+            {
+                int next_index = dodobot::network_info.indexOf('\n', str_index);
+                if (next_index == -1) {
+                    next_index = str_len;
+                }
+                String line = dodobot::network_info.substring(str_index, next_index);
+                str_index = next_index + 1;
+                if (str_index == prev_index) {
+                    return;
+                }
+                prev_index = str_index;
+
+                tft.setCursor(text_x, text_y);
+                tft.print(line);
+                text_y += info_row_size;
+            }
+        }
+
+        void on_unload_with_overlay() {
+            menu->on_unload();
+        }
+        void on_up() {
+            menu->on_up();
+            draw_network_info();
+        }
+        void on_down() {
+            menu->on_down();
+            draw_network_info();
+        }
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
             load("main-menu");
         }
-        void on_enter()  {}
+        void on_enter() {
+            menu->on_enter();
+        }
+        void on_numpad(int number) {
+            if (number == 0) {
+                number = 10;
+            }
+            menu->select(number - 1);
+            draw_network_info();
+        }
+    private:
+        ScrollingMenu* menu;
+        int wifi_entry_index = 0;
+        int16_t info_row_size = 10;
     };
 
     class RobotScreenController : public ViewWithOverlayController
@@ -1719,6 +1835,33 @@ namespace dodobot_ui
     private:
     };
 
+    class ConnectNetworkController : public ViewWithOverlayController
+    {
+    public:
+        ConnectNetworkController(ViewController* topbar) : ViewWithOverlayController(topbar) {
+
+        }
+
+        TopbarController* topbar() {
+            return (TopbarController*) overlay;
+        }
+        void draw_with_overlay()  {}
+        void on_load_with_overlay()
+        {
+            topbar()->fillBottomScreen();
+        }
+
+        void on_unload_with_overlay()  {}
+        void on_up()  {}
+        void on_down()  {}
+        void on_left()  {}
+        void on_right()  {}
+        void on_back()  {
+            load("network");
+        }
+        void on_enter()  {}
+    };
+
 
     void add_view(String name, ViewController* view)
     {
@@ -1764,7 +1907,7 @@ namespace dodobot_ui
     GripperSystemController* gripper_system_screen = new GripperSystemController(topbar);
     CameraSystemController* camera_system_screen = new CameraSystemController(topbar);
     InfoSystemController* info_system_screen = new InfoSystemController(topbar);
-
+    ConnectNetworkController* connect_network_screen = new ConnectNetworkController(topbar);
 
     void init()
     {
@@ -1783,6 +1926,8 @@ namespace dodobot_ui
         add_view("gripper-system", gripper_system_screen);
         add_view("camera-system", camera_system_screen);
         add_view("info-system", info_system_screen);
+
+        add_view("connect-network", connect_network_screen);
 
         load("splash");
         dodobot_serial::println_info("UI ready");
