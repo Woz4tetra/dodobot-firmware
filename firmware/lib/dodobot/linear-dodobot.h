@@ -518,7 +518,7 @@ namespace dodobot_linear
         update_timer = CURRENT_TIME;
 
         // If reporting is enabled, print various data
-        if (dodobot::robot_state.is_reporting_enabled) {
+        if (dodobot::robot_state.is_reporting_enabled && dodobot::robot_state.motors_active) {
             dodobot_serial::data->write("linear", "udddd", CURRENT_TIME, stepper_pos, is_errored(), is_homed, is_active);
         }
 

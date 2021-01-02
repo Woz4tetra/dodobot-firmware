@@ -247,6 +247,9 @@ namespace dodobot_chassis
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
+        if (!dodobot::robot_state.motors_active) {
+            return;
+        }
         dodobot_serial::data->write("enc", "uddff", CURRENT_TIME, encA_pos, encB_pos, enc_speedA, enc_speedB);
     }
 

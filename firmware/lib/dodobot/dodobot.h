@@ -16,15 +16,17 @@ namespace dodobot
     const int MOTOR_STANDBY_PIN = 26;
 
     uint32_t state_report_timer = 0;
-    const uint32_t STATE_SAMPLERATE_DELAY_MS = 100;
+    const uint32_t STATE_SAMPLERATE_DELAY_MS = 500;
 
     uint32_t prev_loop_timer = 0;
     uint32_t loop_report_sum = 0;
     uint32_t loop_report_counter = 0;
 
     String network_info;
-    const int max_networks_len = 20;
-    String* networks = new String[max_networks_len];
+    const int max_networks_len = 15;
+    int network_list_index = 0;
+    String* network_list_names = new String[max_networks_len];
+    int* network_list_signals = new int[max_networks_len];
 
     void soft_restart()
     {
@@ -118,32 +120,14 @@ namespace dodobot
         loop_report_counter = 0;
     }
 
-    void parse_network_list(String network_list)
+    void set_network_entry(int index, String network_name, int signal_strength)
     {
-        int prev_index = -1;
-        int str_index = 0;
-        int index = 0;
-        String line;
-        int str_len = network_list.length();
-        while (str_index <= str_len)
-        {
-            int next_index = network_list.indexOf('\n', str_index);
-            if (next_index == -1) {
-                next_index = str_len;
-            }
-            String line = network_list.substring(str_index, next_index);
-            str_index = next_index + 1;
-
-            if (index == prev_index) {
-                return;
-            }
-            prev_index = index;
-
-            networks[index++] = line;
-            if (index >= max_networks_len) {
-                return;
-            }
+        if (index < 0 || index >= max_networks_len) {
+            return;
         }
+        network_list_names[index] = network_name;
+        network_list_signals[index] = signal_strength;
+        network_list_index = index;
     }
 }
 

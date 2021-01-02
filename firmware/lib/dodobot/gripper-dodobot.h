@@ -166,6 +166,9 @@ namespace dodobot_gripper
         if (!dodobot::robot_state.is_reporting_enabled) {
             return;
         }
+        if (!dodobot::robot_state.motors_active) {
+            return;
+        }
         dodobot_serial::data->write("fsr", "udd", CURRENT_TIME, get_left_fsr(), get_right_fsr());
         // dodobot_serial::info->write("fsr", "udd", CURRENT_TIME, get_left_fsr(), get_right_fsr());
     }

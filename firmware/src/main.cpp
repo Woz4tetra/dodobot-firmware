@@ -244,7 +244,12 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         dodobot_ui::network_screen->set_wifi_state((bool)state);
     }
     else if (category.equals("netlist")) {
-        CHECK_SEGMENT(serial_obj, -1); dodobot::parse_network_list(serial_obj->get_segment());
+        CHECK_SEGMENT(serial_obj, 4);  int32_t index = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, -1); String network_name = String(serial_obj->get_segment());
+        CHECK_SEGMENT(serial_obj, 4);  int32_t signal_strength = serial_obj->segment_as_int32();
+        dodobot_serial::println_info("Received network list info: %s, %d", network_name.c_str(), signal_strength);
+        dodobot::set_network_entry(index, network_name, signal_strength);
+        dodobot_ui::connect_network_screen->draw_list();
     }
 
     else if (category.equals("breakout")) {

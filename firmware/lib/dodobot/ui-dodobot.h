@@ -19,6 +19,7 @@
 using namespace dodobot_display;
 
 
+#define RETURN_IF_NOT_LOADED  if (!is_loaded())  { return; }
 
 namespace dodobot_ui
 {
@@ -64,6 +65,17 @@ namespace dodobot_ui
         virtual void on_enter()  {}
         virtual void on_repeat(EventType e)  {}
         virtual void on_numpad(int number)  {}
+
+        bool is_loaded() {
+            return _is_loaded;
+        }
+
+        void set_loaded(bool state) {
+            _is_loaded = state;
+        }
+    protected:
+        bool _is_loaded = false;
+
     };
 
     class ViewWithOverlayController : public ViewController
@@ -73,6 +85,7 @@ namespace dodobot_ui
             this->overlay = overlay;
         }
         void draw() {
+            RETURN_IF_NOT_LOADED;
             overlay->draw();
             draw_with_overlay();
         }
@@ -80,12 +93,16 @@ namespace dodobot_ui
 
         void on_load() {
             overlay->on_load();
+            this->set_loaded(true);
+            overlay->set_loaded(true);
             on_load_with_overlay();
         }
         virtual void on_load_with_overlay() {}
 
         void on_unload() {
             overlay->on_unload();
+            this->set_loaded(false);
+            overlay->set_loaded(false);
             on_unload_with_overlay();
         }
         virtual void on_unload_with_overlay() {}
@@ -97,7 +114,7 @@ namespace dodobot_ui
     const int max_num_entries = 20;
     struct MenuEntry {
         String name;
-        void (*callback)();
+        void (*callback)(String, int);
     };
     struct MenuBlank {
         int index;
@@ -133,7 +150,7 @@ namespace dodobot_ui
             return selected_index;
         }
 
-        int add_entry(String name, void (*callback)())
+        int add_entry(String name, void (*callback)(String, int))
         {
             MenuEntry entry;
             entry.name = name;
@@ -200,7 +217,7 @@ namespace dodobot_ui
             if (selected_index >= num_entries) {
                 return;
             }
-            entries[selected_index].callback();
+            entries[selected_index].callback(entries[selected_index].name, selected_index);
         }
 
         void select(int index)
@@ -364,6 +381,7 @@ namespace dodobot_ui
         void draw()  {}
         void on_load()
         {
+            set_loaded(true);
             dodobot_serial::println_info("Splash view loaded");
             dodobot_sd::loadGIF("BW_BOT~1.GIF");
             while (dodobot_sd::drawGIFframe())  {}
@@ -382,7 +400,9 @@ namespace dodobot_ui
             }
         }
 
-        void on_unload()  {}
+        void on_unload() {
+            set_loaded(false);
+        }
         void on_up()  {}
         void on_down()  {}
         void on_left()  {}
@@ -978,24 +998,30 @@ namespace dodobot_ui
         void on_up()  {}
         void on_down()  {}
         void on_left()  {
+            RETURN_IF_NOT_LOADED;
             move_select_left();
             draw_all();
         }
         void on_right()  {
+            RETURN_IF_NOT_LOADED;
             move_select_right();
             draw_all();
         }
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("splash");
         }
         void on_enter()  {
+            RETURN_IF_NOT_LOADED;
             if (selected_index < 0 || selected_index >= num_main_menu_entries) {
                 return;
             }
             load(view_name((MainMenuEntry)selected_index));
         }
 
-        void on_numpad(int number) {
+        void on_numpad(int number)
+        {
+            RETURN_IF_NOT_LOADED;
             dodobot_serial::println_info("number: %d", number);
             if (number_sequence->full()) {
                 number_sequence->deque();
@@ -1195,6 +1221,8 @@ namespace dodobot_ui
     {
     public:
         void draw() {
+            RETURN_IF_NOT_LOADED;
+
             dodobot_breakout::draw();
             if (dodobot_chassis::is_bump1_active()) {
                 on_right();
@@ -1204,11 +1232,13 @@ namespace dodobot_ui
             }
         }
         void on_load() {
+            set_loaded(true);
             UI_DELAY_MS = dodobot_breakout::UPDATE_DELAY_MS;
             dodobot_breakout::on_load();
         }
 
         void on_unload()  {
+            set_loaded(false);
             UI_DELAY_MS = UI_DELAY_MS_DEFAULT;
             dodobot_breakout::on_unload();
             tft.fillScreen(ST77XX_BLACK);
@@ -1217,24 +1247,29 @@ namespace dodobot_ui
         void on_up()  {}
         void on_down()  {}
         void on_left() {
+            RETURN_IF_NOT_LOADED;
             dodobot_breakout::left_event();
         }
         void on_right() {
+            RETURN_IF_NOT_LOADED;
             dodobot_breakout::right_event();
         }
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("main-menu");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             dodobot_breakout::enter_event();
         }
         void on_repeat(EventType e) {
+            RETURN_IF_NOT_LOADED;
             dodobot_breakout::repeat_key_event();
         }
     };
 
     bool wifi_is_on = true;
-    void toggle_wifi_callback()
+    void toggle_wifi_callback(String name, int index)
     {
         String text = "Wifi ";
         if (wifi_is_on) {
@@ -1247,15 +1282,18 @@ namespace dodobot_ui
         dodobot_serial::info->write("network", "dd", 0, !wifi_is_on);
     }
 
-    void load_connect_screen()
+    void load_connect_screen(String name, int index)
     {
         load("connect-network");
     }
 
-    void refresh_network_list()
+    void refresh_network_info()
     {
-        dodobot_serial::println_info("Requesting network refresh");
+        dodobot_serial::println_info("Requesting network info refresh");
         dodobot_serial::info->write("network", "d", 1);
+    }
+    void refresh_network_info_callback(String name, int index) {
+        refresh_network_info();
     }
 
     class NetworkScreenController : public ViewWithOverlayController
@@ -1263,7 +1301,7 @@ namespace dodobot_ui
     public:
         NetworkScreenController(ViewController* topbar) : ViewWithOverlayController(topbar) {
             menu = new ScrollingMenu();
-            menu->add_entry("Refresh", refresh_network_list);
+            menu->add_entry("Refresh", refresh_network_info_callback);
             menu->add_entry("Connect", load_connect_screen);
             wifi_entry_index = menu->add_entry("Wifi off", toggle_wifi_callback);
         }
@@ -1277,6 +1315,7 @@ namespace dodobot_ui
             else {
                 menu->set_entry(wifi_entry_index, "Wifi on");
             }
+            RETURN_IF_NOT_LOADED;
             menu->draw();
             draw_network_info();
         }
@@ -1289,7 +1328,7 @@ namespace dodobot_ui
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
-            refresh_network_list();
+            refresh_network_info();
             int border = 3;
             menu->x0 = border;
             menu->y0 = topbar()->get_height() + border + 1;
@@ -1301,6 +1340,7 @@ namespace dodobot_ui
 
         void draw_network_info()
         {
+            RETURN_IF_NOT_LOADED;
             int16_t text_x = menu->menu_w + menu->x0;
             int16_t text_y = menu->y0;
             int prev_index = -1;
@@ -1331,22 +1371,27 @@ namespace dodobot_ui
             menu->on_unload();
         }
         void on_up() {
+            RETURN_IF_NOT_LOADED;
             menu->on_up();
             draw_network_info();
         }
         void on_down() {
+            RETURN_IF_NOT_LOADED;
             menu->on_down();
             draw_network_info();
         }
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("main-menu");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             menu->on_enter();
         }
         void on_numpad(int number) {
+            RETURN_IF_NOT_LOADED;
             if (number == 0) {
                 number = 10;
             }
@@ -1381,30 +1426,21 @@ namespace dodobot_ui
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("main-menu");
         }
         void on_enter()  {}
     };
 
-    void load_drive_motor_screen() {
-        dodobot_serial::println_info("drive-system");
-        load("drive-system");
-    }
-    void load_linear_stepper_screen() {
-        dodobot_serial::println_info("linear-system");
-        load("linear-system");
-    }
-    void load_gripper_screen() {
-        dodobot_serial::println_info("gripper-system");
-        load("gripper-system");
-    }
-    void load_camera_screen() {
-        dodobot_serial::println_info("camera-system");
-        load("camera-system");
-    }
-    void load_system_info_screen() {
-        dodobot_serial::println_info("info-system");
-        load("info-system");
+    void load_system_screen(String name, int index) {
+        dodobot_serial::println_info("Loading %s", name);
+        switch (index) {
+            case 0:  load("drive-system");  break;
+            case 1:  load("linear-system");  break;
+            case 2:  load("gripper-system");  break;
+            case 3:  load("camera-system");  break;
+            case 4:  load("info-system");  break;
+        }
     }
 
     class SystemScreenController : public ViewWithOverlayController
@@ -1413,11 +1449,11 @@ namespace dodobot_ui
         SystemScreenController(ViewController* topbar) : ViewWithOverlayController(topbar) {
             menu = new ScrollingMenu();
             menu->show_numbers = true;
-            menu->add_entry("Drive motors", load_drive_motor_screen);
-            menu->add_entry("Linear stepper", load_linear_stepper_screen);
-            menu->add_entry("Gripper", load_gripper_screen);
-            menu->add_entry("Camera", load_camera_screen);
-            menu->add_entry("System info", load_system_info_screen);
+            menu->add_entry("Drive motors", load_system_screen);
+            menu->add_entry("Linear stepper", load_system_screen);
+            menu->add_entry("Gripper", load_system_screen);
+            menu->add_entry("Camera", load_system_screen);
+            menu->add_entry("System info", load_system_screen);
         }
 
         TopbarController* topbar() {
@@ -1440,20 +1476,26 @@ namespace dodobot_ui
             menu->on_unload();
         }
         void on_up() {
+            RETURN_IF_NOT_LOADED;
             menu->on_up();
         }
         void on_down() {
+            RETURN_IF_NOT_LOADED;
             menu->on_down();
         }
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("main-menu");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             menu->on_enter();
         }
-        void on_numpad(int number) {
+        void on_numpad(int number)
+        {
+            RETURN_IF_NOT_LOADED;
             if (number == 0) {
                 number = 10;
             }
@@ -1464,34 +1506,15 @@ namespace dodobot_ui
         ScrollingMenu* menu;
     };
 
-    void shutdown_callback()
+    void shutdown_screen_callback(String name, int index)
     {
-        notify(INFO, "Shutting down", 1000);
-        dodobot::signal_shutdown();
-    }
-
-    void reboot_callback()
-    {
-        notify(INFO, "Rebooting", 1000);
-        dodobot::signal_reboot();
-    }
-
-    void restart_ros_callback()
-    {
-        notify(INFO, "Relaunch ROS", 1000);
-        dodobot::signal_restart_ros();
-    }
-
-    void restart_client_callback()
-    {
-        notify(INFO, "Relaunch client", 1000);
-        dodobot::signal_restart_client();
-    }
-
-    void relaunch_system_callback()
-    {
-        notify(INFO, "Relaunch system", 1000);
-        dodobot::signal_restart_microcontroller();
+        switch (index) {
+            case 0:  notify(INFO, "Shutting down", 1000);  dodobot::signal_shutdown();  break;
+            case 1:  notify(INFO, "Rebooting", 1000);  dodobot::signal_reboot();  break;
+            case 2:  notify(INFO, "Relaunch ROS", 1000);  dodobot::signal_restart_ros();  break;
+            case 3:  notify(INFO, "Relaunch client", 1000);  dodobot::signal_restart_client();  break;
+            case 4:  notify(INFO, "Relaunch system", 1000);  dodobot::signal_restart_microcontroller();  break;
+        }
     }
 
     class ShutdownScreenController : public ViewWithOverlayController
@@ -1500,11 +1523,11 @@ namespace dodobot_ui
         ShutdownScreenController(ViewController* topbar) : ViewWithOverlayController(topbar) {
             menu = new ScrollingMenu();
             menu->show_numbers = true;
-            menu->add_entry("Shutdown", shutdown_callback);
-            menu->add_entry("Reboot", reboot_callback);
-            menu->add_entry("Relaunch ROS", restart_ros_callback);
-            menu->add_entry("Relaunch client", restart_client_callback);
-            menu->add_entry("Relaunch system", relaunch_system_callback);
+            menu->add_entry("Shutdown", shutdown_screen_callback);
+            menu->add_entry("Reboot", shutdown_screen_callback);
+            menu->add_entry("Relaunch ROS", shutdown_screen_callback);
+            menu->add_entry("Relaunch client", shutdown_screen_callback);
+            menu->add_entry("Relaunch system", shutdown_screen_callback);
         }
 
         TopbarController* topbar() {
@@ -1526,9 +1549,11 @@ namespace dodobot_ui
             menu->on_unload();
         }
         void on_up() {
+            RETURN_IF_NOT_LOADED;
             menu->on_up();
         }
         void on_down() {
+            RETURN_IF_NOT_LOADED;
             menu->on_down();
         }
         void on_left()  {}
@@ -1537,9 +1562,11 @@ namespace dodobot_ui
             load("main-menu");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             menu->on_enter();
         }
         void on_numpad(int number) {
+            RETURN_IF_NOT_LOADED;
             if (number == 0) {
                 number = 10;
             }
@@ -1583,21 +1610,27 @@ namespace dodobot_ui
 
         void on_unload_with_overlay()  {}
         void on_up() {
+            RETURN_IF_NOT_LOADED;
             drive_robot_forward(3000.0);
         }
         void on_down() {
+            RETURN_IF_NOT_LOADED;
             drive_robot_forward(-3000.0);
         }
         void on_left() {
+            RETURN_IF_NOT_LOADED;
             rotate_robot(-2000.0);
         }
         void on_right() {
+            RETURN_IF_NOT_LOADED;
             rotate_robot(2000.0);
         }
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("system");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             drive_robot_forward(0.0);
         }
 
@@ -1662,18 +1695,22 @@ namespace dodobot_ui
         void on_unload_with_overlay()  {}
 
         void on_up() {
+            RETURN_IF_NOT_LOADED;
             dodobot_linear::set_position(dodobot_linear::target_position + 625 * dodobot_linear::microsteps);
         }
 
         void on_down() {
+            RETURN_IF_NOT_LOADED;
             dodobot_linear::set_position(dodobot_linear::target_position - 625 * dodobot_linear::microsteps);
         }
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("system");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             dodobot_linear::home_stepper();
         }
     private:
@@ -1705,23 +1742,29 @@ namespace dodobot_ui
 
         void on_unload_with_overlay()  {}
         void on_up() {
+            RETURN_IF_NOT_LOADED;
             dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 10);
         }
 
         void on_down() {
+            RETURN_IF_NOT_LOADED;
             dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 10);
         }
 
         void on_left() {
+            RETURN_IF_NOT_LOADED;
             dodobot_gripper::open_gripper(dodobot_gripper::gripper_pos - 1);
         }
         void on_right() {
+            RETURN_IF_NOT_LOADED;
             dodobot_gripper::close_gripper(100, dodobot_gripper::gripper_pos + 1);
         }
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("system");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             dodobot_gripper::toggle_gripper(100);
         }
     private:
@@ -1766,21 +1809,27 @@ namespace dodobot_ui
             DODOBOT_SERIAL_WRITE_BOTH("recvimage", "d", 0);
         }
         void on_up() {
+            RETURN_IF_NOT_LOADED;
             dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos + 40);
         }
         void on_down() {
+            RETURN_IF_NOT_LOADED;
             dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos - 40);
         }
         void on_left() {
+            RETURN_IF_NOT_LOADED;
             dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos + 5);
         }
         void on_right() {
+            RETURN_IF_NOT_LOADED;
             dodobot_tilter::set_tilter(dodobot_tilter::tilter_pos - 5);
         }
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("system");
         }
         void on_enter() {
+            RETURN_IF_NOT_LOADED;
             dodobot_tilter::tilter_toggle();
         }
         void on_update_image() {
@@ -1828,6 +1877,7 @@ namespace dodobot_ui
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             dodobot_sd::closeGIF();
             load("system");
         }
@@ -1835,11 +1885,40 @@ namespace dodobot_ui
     private:
     };
 
+    void refresh_network_list()
+    {
+        dodobot_serial::println_info("Requesting network list refresh");
+        dodobot_serial::info->write("network", "d", 2);
+    }
+
+    void refresh_network_list_callback(String name, int index) {
+        refresh_network_list();
+    }
+
+    void request_network_connect(String name, int index)
+    {
+        if (name.length() == 0) {
+            return;
+        }
+        if (name.charAt(0) == '*') {
+            notify(INFO, "Already connected", 1000);
+            return;
+        }
+
+        // dodobot_serial::println_info("Requesting network connect to %s", name.c_str());
+        // dodobot_serial::info->write("network", "ds", 3, name.c_str());
+    }
+
     class ConnectNetworkController : public ViewWithOverlayController
     {
     public:
         ConnectNetworkController(ViewController* topbar) : ViewWithOverlayController(topbar) {
-
+            menu = new ScrollingMenu();
+            menu->add_entry("Refresh", refresh_network_list_callback);
+            menu->add_blank(6);
+            for (int index = 0; index < dodobot::max_networks_len; index++) {
+                menu->add_entry("", request_network_connect);
+            }
         }
 
         TopbarController* topbar() {
@@ -1849,17 +1928,64 @@ namespace dodobot_ui
         void on_load_with_overlay()
         {
             topbar()->fillBottomScreen();
+
+            int border = 5;
+            menu->x0 = border;
+            menu->y0 = topbar()->get_height() + border;
+            menu->menu_w = tft.width() - menu->x0;
+            menu->entry_h = 11;
+
+            refresh_network_list();
+            menu->on_load();
         }
 
-        void on_unload_with_overlay()  {}
-        void on_up()  {}
-        void on_down()  {}
+        void draw_list()
+        {
+            RETURN_IF_NOT_LOADED;
+
+            int stop_index = min(dodobot::network_list_index, dodobot::max_networks_len);
+            for (int index = 0; index < stop_index; index++) {
+                String text = dodobot::network_list_names[index];
+                // int bars = dodobot::network_list_signals[index];
+                menu->set_entry(index + 1, text.c_str());
+            }
+
+            menu->draw();
+        }
+
+        // String bars_to_str(int bars) {
+        //
+        // }
+
+        void on_unload_with_overlay() {
+            menu->on_unload();
+        }
+        void on_up() {
+            RETURN_IF_NOT_LOADED;
+            menu->on_up();
+        }
+        void on_down() {
+            RETURN_IF_NOT_LOADED;
+            menu->on_down();
+        }
         void on_left()  {}
         void on_right()  {}
         void on_back()  {
+            RETURN_IF_NOT_LOADED;
             load("network");
         }
-        void on_enter()  {}
+        void on_enter() {
+            menu->on_enter();
+        }
+        void on_numpad(int number) {
+            RETURN_IF_NOT_LOADED;
+            if (number == 0) {
+                number = 10;
+            }
+            menu->select(number - 1);
+        }
+    private:
+        ScrollingMenu* menu;
     };
 
 
