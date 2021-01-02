@@ -22,7 +22,7 @@ using namespace dodobot_display;
 
 namespace dodobot_ui
 {
-    const uint32_t UI_DELAY_MS_DEFAULT = 150;
+    const uint32_t UI_DELAY_MS_DEFAULT = 300;
     uint32_t UI_DELAY_MS = UI_DELAY_MS_DEFAULT;
     uint32_t ui_timer = 0;
 
@@ -1696,6 +1696,7 @@ namespace dodobot_ui
         }
         void on_load_with_overlay()
         {
+            UI_DELAY_MS = 110;
             topbar()->fillBottomScreen();
             dodobot_sd::loadGIF("CHANSEY.GIF");
             dodobot_sd::setGIFoffset(
@@ -1703,7 +1704,9 @@ namespace dodobot_ui
                 tft.height() - dodobot_sd::gif.getCanvasHeight());
         }
 
-        void on_unload_with_overlay()  {}
+        void on_unload_with_overlay() {
+            UI_DELAY_MS = UI_DELAY_MS_DEFAULT;
+        }
         void on_up()  {}
         void on_down()  {}
         void on_left()  {}
