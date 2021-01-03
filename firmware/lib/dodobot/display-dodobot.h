@@ -32,6 +32,8 @@
 #define ST77XX_DARKER_BLUE   0x3bdb
 #define ST77XX_DARKER_GREEN  0x0680
 #define ST77XX_DARK_GREEN    0x06e0
+#define ST77XX_ORANGE        0xFC00
+
 
 namespace dodobot_display
 {

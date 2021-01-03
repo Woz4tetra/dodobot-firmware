@@ -868,9 +868,10 @@ namespace dodobot_ui
             if (prev_motors != dodobot::robot_state.motors_active)
             {
                 prev_motors = dodobot::robot_state.motors_active;
-                uint16_t motor_color = ST77XX_GRAY;
+                uint16_t motor_color = ST77XX_BLACK;
                 if (dodobot::robot_state.motors_active) {
-                    motor_color = ST77XX_DARK_GREEN;
+                    // motor_color = ST77XX_DARK_GREEN;
+                    motor_color = ST77XX_GREEN;
                 }
                 tft.fillCircle(report_icon_cx, report_icon_cy, motor_icon_r, motor_color);
                 tft.fillCircle(connection_icon_cx, connection_icon_cy, motor_icon_r, motor_color);
@@ -1269,10 +1270,18 @@ namespace dodobot_ui
                 on_left();
             }
         }
-        void on_load() {
+        void on_load()
+        {
             set_loaded(true);
             UI_DELAY_MS = dodobot_breakout::UPDATE_DELAY_MS;
+            load_level();
             dodobot_breakout::on_load();
+        }
+
+        void load_level()
+        {
+            dodobot_breakout::level_config = dodobot_sd::load_breakout_random(dodobot_breakout::level_name);
+            dodobot_serial::println_info("level: %s", dodobot_breakout::level_config.c_str());
         }
 
         void on_unload()  {
@@ -1298,6 +1307,7 @@ namespace dodobot_ui
         }
         void on_enter() {
             RETURN_IF_NOT_LOADED;
+            load_level();
             dodobot_breakout::enter_event();
         }
         void on_repeat(EventType e) {

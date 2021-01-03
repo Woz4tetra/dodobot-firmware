@@ -273,9 +273,9 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         dodobot_ui::connect_network_screen->draw_list();
     }
 
-    else if (category.equals("breakout")) {
-        CHECK_SEGMENT(serial_obj, -1); dodobot_breakout::level_config = serial_obj->get_segment();
-    }
+    // else if (category.equals("breakout")) {
+    //     CHECK_SEGMENT(serial_obj, -1); dodobot_breakout::level_config = serial_obj->get_segment();
+    // }
 
     else if (category.equals("setpath")) {
         CHECK_SEGMENT(serial_obj, -1);

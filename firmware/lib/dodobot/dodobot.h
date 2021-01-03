@@ -32,6 +32,22 @@ namespace dodobot
     int robot_fn_list_len = 0;
     String* robot_functions = new String[max_robot_fns_len];
 
+    uint32_t free_mem()  // for Teensy 3.0
+    {
+        uint32_t stackTop;
+        uint32_t heapTop;
+
+        // current position of the stack.
+        stackTop = (uint32_t) &stackTop;
+
+        // current position of heap.
+        void* hTop = malloc(1);
+        heapTop = (uint32_t) hTop;
+        free(hTop);
+
+        // The difference is (approximately) the free, available ram.
+        return stackTop - heapTop;
+    }
     void soft_restart()
     {
         INFO_SERIAL.end();  // clears the serial monitor if used
@@ -116,10 +132,11 @@ namespace dodobot
         state_report_timer = CURRENT_TIME;
         double loop_rate = (double)loop_report_counter / (double)loop_report_sum * 1E6;
 
-        dodobot_serial::data->write("state", "uddf", CURRENT_TIME,
+        DODOBOT_SERIAL_WRITE_BOTH("state", "uddfu", CURRENT_TIME,
             robot_state.battery_ok,
             robot_state.motors_active,
-            loop_rate
+            loop_rate,
+            free_mem()
         );
 
         loop_report_sum = 0;

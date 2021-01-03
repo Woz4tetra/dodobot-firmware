@@ -260,6 +260,7 @@ namespace dodobot_breakout
         String level;
         Brick** bricks;
         size_t bricks_len;
+        bool loaded_flag;
 
         void create_brick(size_t index, int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c) {
             if (bricks == NULL || index >= bricks_len) {
@@ -272,8 +273,18 @@ namespace dodobot_breakout
         {
             size_t count = 0;
             for (size_t index = 0; index < level.length(); index++) {
-                if (level.charAt(index) == '#') {
-                    count++;
+                switch (level.charAt(index)) {
+                    case 'w':
+                    case '#':
+                    case 'b':
+                    case 'g':
+                    case 'r':
+                    case 'c':
+                    case 'm':
+                    case 'y':
+                    case 'k':
+                    case 'a':
+                        count++;
                 }
             }
             return count;
@@ -284,14 +295,25 @@ namespace dodobot_breakout
                 start_x(x), start_y(y), brick_width(w), brick_height(h), brick_color(c) {
             bricks_len = 0;
             level = "";
+            loaded_flag = false;
         }
 
-        void create_level(String l)
+        bool is_loaded() {
+            return loaded_flag;
+        }
+
+        bool create_level(String l)
         {
+            if (loaded_flag) {
+                dodobot_serial::println_info("A level is already loaded.");
+                return false;
+            }
+            loaded_flag = true;
+
             level = l;
             bricks_len = num_bricks();
             if (bricks_len == 0) {
-                return;
+                return false;
             }
 
             bricks = new Brick*[bricks_len];
@@ -299,34 +321,60 @@ namespace dodobot_breakout
 
             int16_t x = start_x;
             int16_t y = start_y;
+            uint16_t brick_color = ST77XX_WHITE;
+            bool should_create_brick = false;
             for (size_t index = 0; index < level.length(); index++) {
                 switch (level.charAt(index)) {
-                    case '-':   // row return
+                    case '\n':   // row return
                         x = start_x;
                         y += brick_height;
                         break;
-                    case '#':  // brick here
-                        create_brick(brick_index, x, y, brick_width, brick_height, ST77XX_WHITE);
-                        x += brick_width;
-                        brick_index++;
-                        break;
+
+                      // brick here
+                      case 'w':  // white
+                      case '#':  brick_color = ST77XX_WHITE; should_create_brick = true; break;  // white
+                      case 'b':  brick_color = ST77XX_BLUE; should_create_brick = true; break;  // blue
+                      case 'g':  brick_color = ST77XX_GREEN; should_create_brick = true; break;  // green
+                      case 'r':  brick_color = ST77XX_RED; should_create_brick = true; break;  // red
+                      case 'c':  brick_color = ST77XX_CYAN; should_create_brick = true; break;  // cyan
+                      case 'm':  brick_color = ST77XX_MAGENTA; should_create_brick = true; break;  // magenta
+                      case 'y':  brick_color = ST77XX_YELLOW; should_create_brick = true; break;  // yellow
+                      case 'k':  brick_color = ST77XX_GRAY; should_create_brick = true; break;  // gray
+                      case 'a':  brick_color = ST77XX_ORANGE; should_create_brick = true; break;  // orange
+
                     default:
                         x += brick_width;
                         break;  // any other character = no brick
                 }
+                if (should_create_brick)
+                {
+                    create_brick(brick_index, x, y, brick_width, brick_height, brick_color);
+                    x += brick_width;
+                    brick_index++;
+                }
+                should_create_brick = false;
             }
+            return true;
         }
 
         void delete_level()
         {
+            if (!loaded_flag) {
+                dodobot_serial::println_info("Level is already deleted.");
+                return;
+            }
+            loaded_flag = false;
+
             for (size_t index = 0; index < bricks_len; index++) {
                 if (bricks[index] == NULL) {
                     continue;
                 }
                 bricks[index]->hide();
+                delete bricks[index];
             }
             delete[] bricks;
             bricks = NULL;
+            dodobot_serial::println_info("Level deleted.");
         }
 
         void reset_level()
@@ -492,8 +540,9 @@ namespace dodobot_breakout
     size_t num_strikeouts = 0;
     String victory_message = "You did it! Press Enter.";
     uint32_t level_start_time = 0;
-    String level_config = "########-##oooo##-#oo##oo#-########";
-    // String level_config = "oooooooo-oo####oo-oooooooo-oooooooo";
+    String level_name = "BREAKOUT";
+    String default_level_config = "ooo##ooo\noo####oo\nooo##ooo\noooooooo";
+    String level_config = default_level_config;
 
     void reset_ball_to_paddle() {
         ball->reset(paddle->get_ball_x(ball->get_radius()), paddle->get_ball_y(ball->get_radius()));
@@ -506,7 +555,7 @@ namespace dodobot_breakout
         dodobot_display::tft.print(bricks->num_shown_bricks());
         dodobot_display::tft.print(" of ");
         dodobot_display::tft.print(bricks->get_num_bricks());
-        dodobot_display::tft.println("    ");
+        dodobot_display::tft.println("   ");
         dodobot_display::tft.print("time: ");
         if (level_start_time == 0) {
             dodobot_display::tft.print("0");
@@ -520,6 +569,11 @@ namespace dodobot_breakout
         dodobot_display::tft.setCursor(80, dodobot_display::tft.getCursorY());
         dodobot_display::tft.print("outs: ");
         dodobot_display::tft.print(num_strikeouts);
+
+        uint16_t w, h;
+        dodobot_display::textBounds(level_name, w, h);
+        dodobot_display::tft.setCursor(dodobot_display::tft.width() - w, 0);
+        dodobot_display::tft.print(level_name);
 
         dodobot_display::tft.drawFastHLine(BORDER_X_MIN, BORDER_Y_MIN - 1, BORDER_X_MAX - BORDER_X_MIN, ST77XX_WHITE);
     }
@@ -538,14 +592,25 @@ namespace dodobot_breakout
         dodobot_display::tft.print(victory_message);
     }
 
-    void enter_event()
+    void recreate_level()
     {
-        dodobot_display::tft.fillScreen(ST77XX_BLACK);
-        num_strikeouts = 0;
+        tft.fillScreen(ST77XX_BLACK);
         level_start_time = 0;
+        num_strikeouts = 0;
         all_destroyed = false;
         reset_ball_to_paddle();
-        bricks->reset_level();
+        bricks->delete_level();
+        if (!bricks->create_level(level_config)) {
+            level_config = default_level_config;
+            bricks->create_level(level_config);
+        }
+        dodobot_serial::println_info("Available memory: %d", dodobot::free_mem());
+    }
+
+    void enter_event()
+    {
+        recreate_level();
+        // bricks->reset_level();
     }
     void right_event() {
         paddle->set_vx(2.0);
@@ -618,12 +683,7 @@ namespace dodobot_breakout
 
     void on_load()
     {
-        tft.fillScreen(ST7735_BLACK);
-        level_start_time = 0;
-        num_strikeouts = 0;
-        all_destroyed = false;
-        reset_ball_to_paddle();
-        bricks->create_level(level_config);
+        recreate_level();
     }
 
     void on_unload()
