@@ -62,6 +62,7 @@ namespace dodobot
         bool battery_ok;
         bool motors_active;
         bool is_speed_pid_enabled;
+        bool is_ros_ready;
     } robot_state;
 
     void init_structs() {
@@ -69,6 +70,7 @@ namespace dodobot
         robot_state.battery_ok = true;
         robot_state.motors_active = false;
         robot_state.is_speed_pid_enabled = false;
+        robot_state.is_ros_ready = false;
     }
 
     void set_motors_active(bool state)

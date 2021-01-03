@@ -25,6 +25,12 @@ void set_active(bool state)
     dodobot_linear::set_active(state);
 }
 
+void set_ros_ready(bool state)
+{
+    dodobot::robot_state.is_ros_ready = state;
+    dodobot_ui::main_menu->draw_all();
+}
+
 void dodobot_latch_circuit::shutdown_callback() {
     set_active(false);
 }
@@ -57,7 +63,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         CHECK_SEGMENT(serial_obj, -1);
         if (serial_obj->get_segment().equals("dodobot")) {
             dodobot_serial::println_info("Received ready signal!");
-            DODOBOT_SERIAL_WRITE_BOTH("ready", "us", CURRENT_TIME, ROBOT_NAME);
+            DODOBOT_SERIAL_WRITE_BOTH("ready", "us", CURRENT_TIME, ROBOT_NAME.c_str());
         }
         else {
             dodobot_serial::println_error("Invalid ready segment supplied: %s", serial_obj->get_segment().c_str());
@@ -90,6 +96,19 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
             case 0: set_active(false); break;
             case 1: set_active(true); break;
             // case 2: dodobot::soft_restart(); break;
+            default:
+                break;
+        }
+    }
+
+    // ROS ready flag
+    else if (category.equals("ros")) {
+        CHECK_SEGMENT(serial_obj, 4);  int ros_state = serial_obj->segment_as_int32();
+        dodobot_serial::println_info("ROS ready state %d", ros_state);
+        switch (ros_state)
+        {
+            case 0: set_ros_ready(false); break;
+            case 1: set_ros_ready(true); break;
             default:
                 break;
         }
@@ -292,6 +311,15 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
     {
         CHECK_SEGMENT(serial_obj, -1);
         dodobot_sd::list_dir(String(serial_obj->get_segment()));
+    }
+
+    else if (category.equals("key"))
+    {
+        CHECK_SEGMENT(serial_obj, -1); String str = String(serial_obj->get_segment());
+        CHECK_SEGMENT(serial_obj, 4);  int32_t event_type = serial_obj->segment_as_int32();
+        char c = str.charAt(0);
+        dodobot_serial::println_info("Key: %d, %c", event_type, c);
+        dodobot_ui::on_keyboard(event_type, c);
     }
 }
 

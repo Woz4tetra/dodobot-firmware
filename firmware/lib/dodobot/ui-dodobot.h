@@ -45,6 +45,9 @@ namespace dodobot_ui
         EVENT_7,
         EVENT_8,
         EVENT_9,
+        KEYBOARD_UP,
+        KEYBOARD_DOWN,
+        KEYBOARD_HOLD
     };
 
 
@@ -65,6 +68,7 @@ namespace dodobot_ui
         virtual void on_enter()  {}
         virtual void on_repeat(EventType e)  {}
         virtual void on_numpad(int number)  {}
+        virtual void on_keyboard(EventType e, char c)  {}
 
         bool is_loaded() {
             return _is_loaded;
@@ -838,7 +842,7 @@ namespace dodobot_ui
                 prev_motors = dodobot::robot_state.motors_active;
                 uint16_t motor_color = ST77XX_GRAY;
                 if (dodobot::robot_state.motors_active) {
-                    motor_color = ST77XX_GREEN;
+                    motor_color = ST77XX_DARK_GREEN;
                 }
                 tft.fillCircle(report_icon_cx, report_icon_cy, motor_icon_r, motor_color);
                 tft.fillCircle(connection_icon_cx, connection_icon_cy, motor_icon_r, motor_color);
@@ -1037,6 +1041,7 @@ namespace dodobot_ui
 
         void draw_all()
         {
+            RETURN_IF_NOT_LOADED;
             topbar()->fillBottomScreen();
 
             for (int index = 0; index < num_draw_slots; index++) {
@@ -1131,8 +1136,12 @@ namespace dodobot_ui
             int y2 = cy - icon_h / 2 + 7;
             int x3 = cx + icon_w / 2 - 15;
             int y3 = cy + icon_h / 2 - 7;
-            tft.fillTriangle(x0, y0, x1, y1, x2, y2, ST77XX_DARKER_BLUE);
-            tft.fillTriangle(x0, y0, x2, y2, x3, y3, ST77XX_DARKER_BLUE);
+            uint16_t icon_color = ST77XX_GRAY;
+            if (dodobot::robot_state.is_ros_ready) {
+                icon_color = ST77XX_DARKER_BLUE;
+            }
+            tft.fillTriangle(x0, y0, x1, y1, x2, y2, icon_color);
+            tft.fillTriangle(x0, y0, x2, y2, x3, y3, icon_color);
         }
 
         void draw_system_icon(int x, int y, int cx, int cy)
@@ -1284,7 +1293,12 @@ namespace dodobot_ui
 
     void load_connect_screen(String name, int index)
     {
-        load("connect-network");
+        if (wifi_is_on) {
+            load("connect-network");
+        }
+        else {
+            notify(WARN, "Wifi is off", 1000);
+        }
     }
 
     void refresh_network_info()
@@ -1984,6 +1998,11 @@ namespace dodobot_ui
             }
             menu->select(number - 1);
         }
+
+        void on_keyboard(EventType event, char c) {
+
+        }
+
     private:
         ScrollingMenu* menu;
     };
@@ -2131,5 +2150,23 @@ namespace dodobot_ui
             case 8: last_event = EVENT_8; break;
             case 9: last_event = EVENT_9; break;
         }
+    }
+
+    void on_keyboard(int event_code, char key)
+    {
+        dodobot_ui::EventType event;
+        switch (event_code) {
+            case 0:  event = dodobot_ui::KEYBOARD_UP;  break;
+            case 1:  event = dodobot_ui::KEYBOARD_DOWN;  break;
+            case 2:  event = dodobot_ui::KEYBOARD_HOLD;  break;
+            default:  event = dodobot_ui::NONE_EVENT;  break;
+        }
+        if (event == dodobot_ui::NONE_EVENT) {
+            return;
+        }
+
+        if (current_view == NULL)  return;
+        current_view->on_keyboard(event, key);
+        last_event = event;
     }
 }
