@@ -255,14 +255,16 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         dodobot_ui::update_date(serial_obj->get_segment());
     }
 
-    else if (category.equals("network")) {
+    else if (category.equals("network"))
+    {
         CHECK_SEGMENT(serial_obj, 4);  int32_t state = serial_obj->segment_as_int32();
         CHECK_SEGMENT(serial_obj, -1); dodobot::network_info = serial_obj->get_segment();
         dodobot_serial::println_info("Received network info. Wifi state: %d", state);
         dodobot_ui::network_screen->draw_network_info();
         dodobot_ui::network_screen->set_wifi_state((bool)state);
     }
-    else if (category.equals("netlist")) {
+    else if (category.equals("netlist"))
+    {
         CHECK_SEGMENT(serial_obj, 4);  int32_t index = serial_obj->segment_as_int32();
         CHECK_SEGMENT(serial_obj, -1); String network_name = String(serial_obj->get_segment());
         CHECK_SEGMENT(serial_obj, 4);  int32_t signal_strength = serial_obj->segment_as_int32();
@@ -321,6 +323,37 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         dodobot_serial::println_info("Key: %d, %c", event_type, c);
         dodobot_ui::on_keyboard(event_type, c);
     }
+
+    else if (category.equals("robotfn"))
+    {
+        CHECK_SEGMENT(serial_obj, 4);  int32_t index = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, 4);  int32_t num_functions = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, -1); String function_name = String(serial_obj->get_segment());
+        CHECK_SEGMENT(serial_obj, 4); int32_t blank_space = serial_obj->segment_as_int32();
+        dodobot_serial::println_info("Received robot function: %s, %d", function_name.c_str(), index);
+        if (index == 0) {
+            dodobot_ui::robot_screen->reset_list();
+        }
+
+        dodobot::set_robot_fn_entry(index, function_name);
+        if (blank_space > 0) {
+            dodobot_serial::println_info("Adding blank space: %d @ %d", blank_space, index);
+            dodobot_ui::robot_screen->set_blank_space(index, blank_space);
+        }
+
+        if (index == num_functions - 1) {
+            dodobot_ui::robot_screen->draw_list();
+        }
+    }
+    else if (category.equals("notify"))
+    {
+        CHECK_SEGMENT(serial_obj, 4);  dodobot_ui::NotificationLevel level = (dodobot_ui::NotificationLevel)serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, -1); String text = String(serial_obj->get_segment());
+        CHECK_SEGMENT(serial_obj, 4);  uint32_t timeout = serial_obj->segment_as_uint32();
+        dodobot_serial::println_error("Received notification: %d, %s, %d", (int)level, text.c_str(), timeout);
+
+        dodobot_ui::notify(level, text, timeout);
+    }
 }
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
@@ -343,23 +376,19 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             // dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() + 10000);
             // dodobot_linear::set_velocity(dodobot_linear::MAX_SPEED);
             dodobot_ui::on_up();
-            // dodobot_menu::up_menu_event();
             break;  // ^
         case 0x609f: dodobot_serial::println_info("IR: MODE"); break;  // MODE
         case 0x10ef:
             dodobot_serial::println_info("IR: <");
             dodobot_ui::on_left();
-            // dodobot_menu::left_menu_event();
             break;  // <
         case 0x906f:
             dodobot_serial::println_info("IR: ENTER");
             dodobot_ui::on_enter();
-            // dodobot_menu::enter_menu_event();
             break;  // ENTER
         case 0x50af:
             dodobot_serial::println_info("IR: >");
             dodobot_ui::on_right();
-            // dodobot_menu::right_menu_event();
             break;  // >
         case 0x30cf:
             dodobot_serial::println_info("IR: 0 10+");
@@ -370,12 +399,10 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             // dodobot_linear::set_position(dodobot_linear::tic.getCurrentPosition() - 10000);
             // dodobot_linear::set_velocity(-dodobot_linear::MAX_SPEED);
             dodobot_ui::on_down();
-            // dodobot_menu::down_menu_event();
             break;  // v
         case 0x708f:
             dodobot_serial::println_info("IR: Del");
             dodobot_ui::on_back();
-            // dodobot_menu::back_menu_event();
             break;  // Del
         case 0x08f7:
             dodobot_serial::println_info("IR: 1");
@@ -430,7 +457,6 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             dodobot_ui::on_numpad(9);
             break;  // 9
         case 0xffff:  // repeat last command
-            // dodobot_menu::repeat_key_event();
             dodobot_ui::on_repeat();
             break;
     }
@@ -451,7 +477,6 @@ void setup()
     dodobot_speed_pid::setup_pid();  tft.print("Speed PID ready\n");
     dodobot_latch_circuit::setup_latch();  tft.print("Latch ready\n");
     dodobot_sd::setup();  tft.print("SD card ready\n");
-    // dodobot_menu::init_menus();
     tft.print("Dodobot is ready to go!\n");
     dodobot_serial::println_info("Dodobot is ready to go!");
     dodobot_ui::init();
@@ -479,5 +504,4 @@ void loop()
     dodobot_speed_pid::update_speed_pid();
     dodobot_latch_circuit::update();
     dodobot_ui::draw();
-    // dodobot_menu::draw_menus();
 }

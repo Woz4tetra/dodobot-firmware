@@ -24,9 +24,13 @@ namespace dodobot
 
     String network_info;
     const int max_networks_len = 15;
-    int network_list_index = 0;
+    int network_list_len = 0;
     String* network_list_names = new String[max_networks_len];
     int* network_list_signals = new int[max_networks_len];
+
+    const int max_robot_fns_len = 15;
+    int robot_fn_list_len = 0;
+    String* robot_functions = new String[max_robot_fns_len];
 
     void soft_restart()
     {
@@ -129,7 +133,16 @@ namespace dodobot
         }
         network_list_names[index] = network_name;
         network_list_signals[index] = signal_strength;
-        network_list_index = index;
+        network_list_len = index + 1;
+    }
+
+    void set_robot_fn_entry(int index, String function_name)
+    {
+        if (index < 0 || index >= max_robot_fns_len) {
+            return;
+        }
+        robot_functions[index] = function_name;
+        robot_fn_list_len = index + 1;
     }
 }
 

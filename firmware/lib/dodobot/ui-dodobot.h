@@ -23,7 +23,7 @@ using namespace dodobot_display;
 
 namespace dodobot_ui
 {
-    const uint32_t UI_DELAY_MS_DEFAULT = 300;
+    const uint32_t UI_DELAY_MS_DEFAULT = 200;
     uint32_t UI_DELAY_MS = UI_DELAY_MS_DEFAULT;
     uint32_t ui_timer = 0;
 
@@ -206,11 +206,30 @@ namespace dodobot_ui
             blanks[num_blanks++] = blank;
         }
 
-        void on_up() {
+        void remove_blank(int index) {
+            for (int shift_index = index; shift_index < num_blanks - 1; shift_index++) {
+                blanks[index] = blanks[index + 1];
+            }
+            num_blanks--;
+        }
+
+        void remove_all_blanks() {
+            num_blanks = 0;
+        }
+
+        void on_up()
+        {
+            if (selected_index == -2) {
+                return;
+            }
             select(selected_index - 1);
         }
 
-        void on_down() {
+        void on_down()
+        {
+            if (selected_index == -2) {
+                return;
+            }
             select(selected_index + 1);
         }
 
@@ -418,9 +437,9 @@ namespace dodobot_ui
 
 
     enum NotificationLevel {
-        INFO,
-        WARN,
-        ERROR
+        INFO = 0,
+        WARN = 1,
+        ERROR = 2
     };
 
     struct Notification {
@@ -613,6 +632,7 @@ namespace dodobot_ui
             usb_state = NO_USB_POWER;
             prev_text_w = 0;
             prev_text_h = 0;
+            battery_update_timer = CURRENT_TIME;
         }
 
         bool notify(NotificationLevel level, String text, uint32_t timeout) {
@@ -697,12 +717,18 @@ namespace dodobot_ui
         int battery_x = 0;
         int battery_V_cy;
         int battery_mA_cy;
+        int batt_nub_h = 7;
+        int batt_nub_y;
+        uint16_t single_char_w = 6;
+        uint16_t w_V, h_V;
+        uint16_t w_mA, h_mA;
 
         int notif_box_x = 0;
         int notif_box_y = 0;
         int notif_box_width = 70;
         int notif_box_height = 5;
         int notif_height_offset = 3;
+
 
         String starting_text = "Connecting...";
         String text;
@@ -719,6 +745,8 @@ namespace dodobot_ui
         bool prev_motors = false;
         ConnectState usb_state = USB_UNKNOWN;
         ConnectState prev_usb_state = USB_UNKNOWN;
+
+        uint32_t battery_update_timer;
 
         void check_notif_queue()
         {
@@ -854,17 +882,19 @@ namespace dodobot_ui
         }
         void draw_battery()
         {
+            if (CURRENT_TIME - battery_update_timer < INA_SAMPLERATE_DELAY_MS) {
+                return;
+            }
+            battery_update_timer = CURRENT_TIME;
+
             String voltage_text = String(dodobot_power_monitor::ina219_loadvoltage) + "V";
             String current_text = String((int)dodobot_power_monitor::ina219_current_mA) + "mA";
 
             tft.setTextSize(1);
-            uint16_t w_V, h_V;
             dodobot_display::textBounds(voltage_text, w_V, h_V);
-            uint16_t single_char_w = w_V / voltage_text.length();
             int16_t x_V = battery_x - w_V;
             int16_t y_V = battery_V_cy - h_V / 2;
 
-            uint16_t w_mA, h_mA;
             dodobot_display::textBounds(current_text, w_mA, h_mA);
             int16_t x_mA = battery_x - w_mA;
             int16_t y_mA = battery_mA_cy - h_mA / 2 + 1;
@@ -882,12 +912,11 @@ namespace dodobot_ui
             int gauge_len = dodobot_power_monitor::max_power_level;
             int h_gauge = h_V + h_mA + 1;
 
-            int batt_nub_h = 7;
-            int batt_nub_y = (height - batt_nub_h) / 2 + 1;
+            batt_nub_y = (height - batt_nub_h) / 2 + 1;
             tft.fillRect(battery_x, batt_nub_y, 4, batt_nub_h, battery_nub_color);
 
-            int stop_index = max(voltage_text.length(), current_text.length());
-            stop_index = max(stop_index, gauge_len + 1);  // text can extend past gauge by 1
+            // int stop_index = max(voltage_text.length(), current_text.length());
+            int stop_index = max(5, gauge_len + 1);  // text can extend past gauge by 1
             for (int index = 0; index < stop_index; index++)
             {
                 int gauge_x = battery_x - single_char_w * (index + 1);
@@ -1418,11 +1447,23 @@ namespace dodobot_ui
         int16_t info_row_size = 10;
     };
 
+    void request_robot_function(String name, int index)
+    {
+        if (name.length() == 0) {
+            return;
+        }
+        dodobot_serial::println_info("Requesting robot function: %s", name.c_str());
+        dodobot_serial::data->write("robotfn", "s", name.c_str());
+    }
+
     class RobotScreenController : public ViewWithOverlayController
     {
     public:
         RobotScreenController(ViewController* topbar) : ViewWithOverlayController(topbar) {
-
+            menu = new ScrollingMenu();
+            for (int index = 0; index < dodobot::max_robot_fns_len; index++) {
+                menu->add_entry("", request_robot_function);
+            }
         }
 
         TopbarController* topbar() {
@@ -1431,19 +1472,107 @@ namespace dodobot_ui
         void draw_with_overlay()  {}
         void on_load_with_overlay()
         {
-            topbar()->fillBottomScreen();
+            menu->x0 = border;
+            menu->y0 = topbar()->get_height() + border;
+            menu->menu_w = menu_w_selected;
+            menu->entry_h = 11;
+
+            menu->on_load();
+            draw_list();
+        }
+        void on_unload_with_overlay() {
+            menu->on_unload();
+        }
+        void on_up() {
+            RETURN_IF_NOT_LOADED;
+            menu->on_up();
+        }
+        void on_down() {
+            RETURN_IF_NOT_LOADED;
+            menu->on_down();
+        }
+        void on_left()
+        {
+            RETURN_IF_NOT_LOADED;
+
+            if (menu->get_selected() == -2) {
+                menu->select(prev_selected);
+            }
+            menu->menu_w = menu_w_selected;
+            draw_list();
+        }
+        void on_right()
+        {
+            RETURN_IF_NOT_LOADED;
+
+            if (menu->get_selected() != -2) {
+                prev_selected = menu->get_selected();
+                menu->select(-2);
+            }
+            menu->menu_w = menu_w_deselected;
+            draw_list();
         }
 
-        void on_unload_with_overlay()  {}
-        void on_up()  {}
-        void on_down()  {}
-        void on_left()  {}
-        void on_right()  {}
+        void on_enter() {
+            RETURN_IF_NOT_LOADED;
+            menu->on_enter();
+        }
         void on_back()  {
             RETURN_IF_NOT_LOADED;
             load("main-menu");
         }
-        void on_enter()  {}
+
+        void on_numpad(int number) {
+            RETURN_IF_NOT_LOADED;
+            if (number == 0) {
+                number = 10;
+            }
+            menu->select(number - 1);
+        }
+
+
+        void set_blank_space(int index, int blank_space) {
+            menu->add_blank(blank_space, index);
+        }
+
+        void reset_list() {
+            menu->remove_all_blanks();
+        }
+
+        void draw_list()
+        {
+            int stop_index = min(dodobot::robot_fn_list_len, dodobot::max_robot_fns_len);
+            for (int index = 0; index < stop_index; index++) {
+                String text = dodobot::robot_functions[index];
+                menu->set_entry(index, text.c_str());
+            }
+
+            RETURN_IF_NOT_LOADED;
+            topbar()->fillBottomScreen();
+            menu->draw();
+            draw_map();
+        }
+
+    private:
+        int16_t border = 5;
+        int16_t menu_w_selected = 120;
+        int16_t menu_w_deselected = 50;
+
+        int16_t map_x, map_y;
+        uint16_t map_w, map_h;
+
+        int prev_selected = 0;
+
+        void draw_map()
+        {
+            map_x = menu->x0 + menu->menu_w;
+            map_y = topbar()->get_height();
+            map_w = tft.width() - map_x;
+            map_h = tft.height() - map_y;
+            tft.fillRect(map_x, map_y, map_w, map_h, ST77XX_GRAY);
+        }
+
+        ScrollingMenu* menu;
     };
 
     void load_system_screen(String name, int index) {
@@ -1957,7 +2086,7 @@ namespace dodobot_ui
         {
             RETURN_IF_NOT_LOADED;
 
-            int stop_index = min(dodobot::network_list_index, dodobot::max_networks_len);
+            int stop_index = min(dodobot::network_list_len, dodobot::max_networks_len);
             for (int index = 0; index < stop_index; index++) {
                 String text = dodobot::network_list_names[index];
                 // int bars = dodobot::network_list_signals[index];
