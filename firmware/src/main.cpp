@@ -281,6 +281,10 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         CHECK_SEGMENT(serial_obj, -1);
         dodobot_sd::set_dest_path(String(serial_obj->get_segment()));
     }
+    else if (category.equals("delete")) {
+        CHECK_SEGMENT(serial_obj, -1);
+        dodobot_sd::delete_file(String(serial_obj->get_segment()));
+    }
 
     else if (category.equals("file"))
     {
@@ -304,9 +308,10 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
         if (!dodobot_sd::append_to_buffer(file_bytes, (uint32_t)file_len)) {
             return;
         }
-        if (segment_index == num_segments - 1) {
+        if (segment_index == num_segments - 1)
+        {
             dodobot_sd::close_file();
-            dodobot_ui::camera_system_screen->on_update_image();
+            dodobot_ui::on_file(dodobot_sd::dest_path);
         }
     }
     else if (category.equals("listdir"))
@@ -440,7 +445,7 @@ void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
             break;  // 6
         case 0x18E7:
             dodobot_serial::println_info("IR: 7");
-            dodobot_sd::list_all_files();
+            // dodobot_sd::list_all_files();
             dodobot_ui::on_numpad(7);
             break;  // 7
         case 0x9867:

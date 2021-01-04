@@ -47,7 +47,8 @@ namespace dodobot_ui
         EVENT_9,
         KEYBOARD_UP,
         KEYBOARD_DOWN,
-        KEYBOARD_HOLD
+        KEYBOARD_HOLD,
+        FILE_EVENT
     };
 
 
@@ -69,6 +70,7 @@ namespace dodobot_ui
         virtual void on_repeat(EventType e)  {}
         virtual void on_numpad(int number)  {}
         virtual void on_keyboard(EventType e, char c)  {}
+        virtual void on_file(String filename)  {}
 
         bool is_loaded() {
             return _is_loaded;
@@ -1274,13 +1276,13 @@ namespace dodobot_ui
         {
             set_loaded(true);
             UI_DELAY_MS = dodobot_breakout::UPDATE_DELAY_MS;
-            load_level();
+            load_level(-1);  // load random level
             dodobot_breakout::on_load();
         }
 
-        void load_level()
+        void load_level(int level_index)
         {
-            dodobot_breakout::level_config = dodobot_sd::load_breakout_random(dodobot_breakout::level_name);
+            dodobot_breakout::level_config = dodobot_sd::load_breakout_level(&dodobot_breakout::level_name, level_index);
             dodobot_serial::println_info("level: %s", dodobot_breakout::level_config.c_str());
         }
 
@@ -1307,12 +1309,18 @@ namespace dodobot_ui
         }
         void on_enter() {
             RETURN_IF_NOT_LOADED;
-            load_level();
+            load_level(-1);  // load random level
             dodobot_breakout::enter_event();
         }
         void on_repeat(EventType e) {
             RETURN_IF_NOT_LOADED;
             dodobot_breakout::repeat_key_event();
+        }
+        void on_numpad(int number)
+        {
+            RETURN_IF_NOT_LOADED;
+            load_level(number);
+            dodobot_breakout::on_load();
         }
     };
 
@@ -1940,7 +1948,7 @@ namespace dodobot_ui
             int y_offset = topbar()->get_height() + 5;
             // tft.setTextColor(ST77XX_BLACK, ST77XX_BLACK);
             tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
-            tft.setCursor(border_offset_w, y_offset); tft.println("pos: " + String(dodobot_tilter::tilter_pos) + "       "); y_offset += row_size;
+            tft.setCursor(border_offset_w, y_offset); tft.println("pos: " + String(dodobot_tilter::tilter_pos) + "  "); y_offset += row_size;
 
 
             if (!image_updated) {
@@ -1988,11 +1996,19 @@ namespace dodobot_ui
         void on_update_image() {
             image_updated = true;
         }
+        void on_file(String filename)
+        {
+            if (img_filename.equals(filename)) {
+                on_update_image();
+            }
+        }
+
     private:
         bool image_updated = false;
         int16_t x0, y0;
         int16_t border_offset_w = 3;
         uint16_t row_size = 10;
+        String img_filename = "CAMERA.JPG";
     };
 
     class InfoSystemController : public ViewWithOverlayController
@@ -2293,6 +2309,7 @@ namespace dodobot_ui
 
     void on_keyboard(int event_code, char key)
     {
+        if (current_view == NULL)  return;
         dodobot_ui::EventType event;
         switch (event_code) {
             case 0:  event = dodobot_ui::KEYBOARD_UP;  break;
@@ -2304,8 +2321,14 @@ namespace dodobot_ui
             return;
         }
 
-        if (current_view == NULL)  return;
         current_view->on_keyboard(event, key);
         last_event = event;
+    }
+
+    void on_file(String filename)
+    {
+        if (current_view == NULL)  return;
+        current_view->on_file(filename);
+        last_event = FILE_EVENT;
     }
 }

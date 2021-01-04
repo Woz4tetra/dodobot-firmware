@@ -127,6 +127,15 @@ namespace dodobot_sd
         file_size = 0;
     }
 
+    void delete_file(String filename)
+    {
+        const char* path = filename.c_str();
+        if (SD.exists(path)) {
+            dodobot_serial::println_info("Deleting file: %s", path);
+            SD.remove(path);
+        }
+    }
+
     void close_file()
     {
         if (!file_is_open) {
@@ -496,21 +505,17 @@ namespace dodobot_sd
     // Breakout levels
     //
 
-    uint32_t prev_breakout_index = 100000;
     uint16_t max_files = 100;
     String* list_filenames = new String[max_files];
-    uint32_t max_level_size = 100;
-    char* level_array = new char[max_level_size];
-    uint32_t level_size = 0;
+    uint32_t num_files = 0;
 
-    String load_breakout_random(String &loaded_name)
+    bool list_breakout_files()
     {
         if (!initialized) {
-            return "";
+            return false;
         }
-
-        uint32_t count = 0;
         File root = SD.open("/");
+        num_files = 0;
         while (true) {
             File entry = root.openNextFile();
             if (!entry) {
@@ -521,27 +526,30 @@ namespace dodobot_sd
                 if (strstr(entry.name(), "BREAK") != NULL)
                 {
                     String name = entry.name();
-                    list_filenames[count] = name;
-                    count++;
-                    if (count >= max_files) {
+                    list_filenames[num_files++] = name;
+                    if (num_files >= max_files) {
                         break;
                     }
                 }
             }
             entry.close();
         }
-        if (count == 0) {
+        return num_files > 0;
+    }
+
+    uint32_t max_level_size = 100;
+    char* level_array = new char[max_level_size];
+    uint32_t level_size = 0;
+
+    String read_breakout_file(String* loaded_name, uint32_t index)
+    {
+        if (num_files == 0) {
             return "";
         }
-
-        randomSeed(micros());
-        uint32_t index = 0;
-        while (index == prev_breakout_index) {
-            index = (uint32_t)random(count);
+        if (index >= num_files) {
+            index = num_files - 1;
         }
-        prev_breakout_index = index;
-
-        loaded_name = list_filenames[index];
+        *loaded_name = list_filenames[index];
         File file = SD.open(list_filenames[index].c_str());
         if (!file) {
             return "";
@@ -557,7 +565,31 @@ namespace dodobot_sd
         String level_config = String(level_array);
         return level_config;
     }
+
+    int prev_breakout_index = 100000;
+    String load_breakout_level(String* loaded_name, int requested_index)
+    {
+        if (requested_index < -1) {  // -1: random index
+            return "";
+        }
+        if (!list_breakout_files()) {
+            return "";
+        }
+
+        if (requested_index == -1)
+        {
+            randomSeed(micros());
+            do {
+                requested_index = (int)random(0, num_files);
+            }
+            while (requested_index == prev_breakout_index);
+        }
+        prev_breakout_index = requested_index;
+
+        String level_config = read_breakout_file(loaded_name, requested_index);
+
+        return level_config;
+    }
 }
 
 #endif  // __DODOBOT_SD_H__
-

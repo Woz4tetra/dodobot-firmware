@@ -555,7 +555,7 @@ namespace dodobot_breakout
         dodobot_display::tft.print(bricks->num_shown_bricks());
         dodobot_display::tft.print(" of ");
         dodobot_display::tft.print(bricks->get_num_bricks());
-        dodobot_display::tft.println("   ");
+        dodobot_display::tft.println("  ");
         dodobot_display::tft.print("time: ");
         if (level_start_time == 0) {
             dodobot_display::tft.print("0");
@@ -564,7 +564,7 @@ namespace dodobot_breakout
             float time = (float)(CURRENT_TIME - level_start_time) / 1000.0;
             dodobot_display::tft.print(time);
         }
-        dodobot_display::tft.print("   ");
+        dodobot_display::tft.print("      ");
 
         dodobot_display::tft.setCursor(80, dodobot_display::tft.getCursorY());
         dodobot_display::tft.print("outs: ");
