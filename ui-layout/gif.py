@@ -21,7 +21,7 @@ def method_dispose(frames, previous_frame):
     elif frames.disposal_method == 2:
         draw = ImageDraw.Draw(previous_frame)
         x0, y0, x1, y1 = frames.dispose_extent
-        draw.rectangle((x0, y0, x1 - 1, y1 - 1), fill=(255, 255, 255, 0), width=0)  # fill white transparent
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), fill=(255, 255, 255, 255), width=0)  # fill white transparent
         return new_frame, previous_frame.copy()
     elif frames.disposal_method == 3:
         return new_frame, previous_frame.copy()
@@ -52,7 +52,33 @@ def load_gif(path, use_pygame=True):
         gif.seek(0)
 
     if use_pygame:
-        return to_pygame_gif(gif_array)
+        return gif, to_pygame_gif(gif_array)
     else:
-        return gif_array
+        return gif, gif_array
 
+
+if __name__ == '__main__':
+    def convert_gif(path):
+        import os
+        gif, frames = load_gif(path, False)
+
+        images = []
+        for index, frame in enumerate(frames):
+            im = frame[0]
+            images.append(im)
+            # im = im.convert('RGB')
+
+            # im.save("out-%s.png" % index)
+
+        # images = []
+        # for filename in os.listdir("."):
+        #     if filename.startswith("out"):
+        #         print(filename)
+        #         start = len("out-")
+        #         stop = filename.find(".")
+        #         index = int(filename[start:stop])
+        #         while len(images) <= index:
+        #             images.append(None)
+        #         images[index] = Image.open(filename)
+        images[0].save("dest.gif", save_all=True, append_images=images, duration=frames[0][1], loop=0, disposal=1)
+    convert_gif("/Users/Woz4tetra/Desktop/chansey.gif")

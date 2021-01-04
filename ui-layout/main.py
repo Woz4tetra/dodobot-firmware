@@ -5,11 +5,25 @@ from datetime import datetime
 from adafruit_gfx import Adafruit_ST77XX
 from adafruit_gfx.color565 import *
 from ui_elements.view_controller import ViewController
+
 from view_controllers.main_menu import MainMenuController
 from view_controllers.splash_screen import SplashScreenController
 from view_controllers.topbar import TopbarController
 from view_controllers import topbar
+
 from view_controllers.robot_status import RobotStatusController
+from view_controllers.systems import SystemsController
+from view_controllers.drive_motor_system import DriveMotorSystemController
+from view_controllers.linear_system import LinearSystemController
+from view_controllers.gripper_system import GripperSystemController
+from view_controllers.camera_system import CameraSystemController
+from view_controllers.system_info import SystemInfoController
+from view_controllers.network import NetworkController
+from view_controllers.connect_screen import ConnectScreenController
+from view_controllers.all_characters import AllCharactersController
+from view_controllers.brick_renderer import BrickRenderController
+
+from gif import load_gif
 
 VOLTAGE_V = 11.0
 
@@ -57,6 +71,25 @@ def on_event(tft, event):
     elif event.key == pygame.K_r:
         tft.load_view(0)
 
+    elif event.key == pygame.K_t:
+        _, gif = load_gif("gifs/chansey.gif")
+        for frame, duration in gif:
+            tft.fillScreen(ST77XX_BLACK)
+            w = frame.get_width()
+            h = frame.get_height()
+            x = (tft.width() - w) // 2
+            y = (tft.height() - h) // 2
+            tft.screen.blit(frame, (x, y))
+            tft.draw()
+            pygame.time.wait(duration)
+
+    elif event.key == pygame.K_c:
+        tft.load_view(12)
+
+    elif event.key == pygame.K_b:
+        tft.load_view(13)
+
+
 def update_topbar_time(tft):
     topbar_inst = tft.controllers[1].topbar
     if topbar_inst.connection_status == topbar.USB_CONNECTION_STABLE:
@@ -70,11 +103,25 @@ def update_topbar_battery(tft):
     topbar_inst.current_mA = random.randint(900, 1100)
 
 
+def toggle_wifi(tft, controller):
+    controller.toggle_wifi()
+
+
 def main():
     topbar = TopbarController()
     splash_screen = SplashScreenController()
     main_menu = MainMenuController(topbar)
     robot_status = RobotStatusController(topbar)
+    systems = SystemsController(topbar)
+    drive_motor_system = DriveMotorSystemController(topbar)
+    linear_system = LinearSystemController(topbar)
+    gripper_system = GripperSystemController(topbar)
+    camera_system = CameraSystemController(topbar)
+    system_info = SystemInfoController(topbar)
+    network = NetworkController(topbar, toggle_wifi)
+    connect_screen = ConnectScreenController(topbar)
+    all_characters_screen = AllCharactersController(topbar)
+    bricks = BrickRenderController()
 
     os.environ['SDL_VIDEO_WINDOW_POS'] = '%i,%i' % (0, 0)
 
@@ -82,10 +129,18 @@ def main():
 
     tft.add_controller(splash_screen)
     tft.add_controller(main_menu)
-    tft.add_controller(robot_status, index=2)
+    tft.add_controller(network, index=2)
     tft.add_controller(robot_status, index=3)
-    tft.add_controller(robot_status, index=4)
+    tft.add_controller(systems, index=4)
     tft.add_controller(robot_status, index=5)
+    tft.add_controller(drive_motor_system, index=6)
+    tft.add_controller(linear_system, index=7)
+    tft.add_controller(gripper_system, index=8)
+    tft.add_controller(camera_system, index=9)
+    tft.add_controller(system_info, index=10)
+    tft.add_controller(connect_screen, index=11)
+    tft.add_controller(all_characters_screen, index=12)
+    tft.add_controller(bricks, index=13)
 
     tft.init(160, 128)
     # tft.init(320, 256)
@@ -105,7 +160,8 @@ def main():
 
     tft.fillScreen(ST77XX_BLACK)
 
-    tft.load_view(0)
+    # tft.load_view(0)
+    tft.load_view(1)
 
     while tft.running:
         if not tft.update():

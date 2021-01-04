@@ -41,6 +41,8 @@ ST77XX_GRAY = Color565.from_rgb((128, 128, 128))
 ST77XX_LIGHT_PINK = Color565.from_rgb((255, 154, 159))
 ST77XX_LIGHT_BLUE = Color565.from_rgb((201, 217, 248))
 ST77XX_DARKER_BLUE = Color565.from_rgb((61, 120, 216))
+ST77XX_DARKER_GREEN = Color565.from_rgb((2, 208, 2))
+ST77XX_DARK_GREEN = Color565.from_rgb((0, 220, 0))
 
 if __name__ == '__main__':
     def conversion_test():
@@ -84,6 +86,8 @@ if __name__ == '__main__':
         conversion_test()
         print(hex(ST77XX_LIGHT_BLUE.value))
         print(hex(ST77XX_DARKER_BLUE.value))
+        print(hex(ST77XX_DARKER_GREEN.value))
+        print(hex(ST77XX_DARK_GREEN.value))
 
 
     test_colors()

@@ -1,0 +1,14 @@
+/Users/Woz4tetra/Documents/Code/dodobot/dodobot_py/dodobot_py/config/breakout/BREAK-MU.txt
+# /Users/Woz4tetra/Documents/Code/dodobot/dodobot_py/dodobot_py/config/breakout/BREAK-RC.txt
+# /Users/Woz4tetra/Documents/Code/dodobot/dodobot_py/dodobot_py/config/breakout/BREAK-ST.txt
+# /Users/Woz4tetra/Documents/Code/dodobot/dodobot_py/dodobot_py/config/breakout/BREAK-YO.txt
+# /Users/Woz4tetra/Documents/Code/dodobot/dodobot_py/dodobot_py/config/breakout/BREAK-RA.txt
+# /Users/Woz4tetra/Documents/Code/dodobot/dodobot_py/dodobot_py/config/breakout/BREAK-SS.txt
+# /Users/Woz4tetra/Documents/Code/dodobot/dodobot_py/dodobot_py/config/breakout/BREAK-T.txt
+
+
+
+
+
+
+

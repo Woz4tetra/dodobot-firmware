@@ -11,7 +11,7 @@ class SplashScreenController(ViewController):
         self.gif = None
 
     def on_load(self):
-        self.gif = load_gif("gifs/bw_bot_splash.gif")
+        _, self.gif = load_gif("gifs/bw_bot_splash.gif")
         for frame, duration in self.gif:
             self.screen.fillScreen(ST77XX_BLACK)
             w = frame.get_width()
