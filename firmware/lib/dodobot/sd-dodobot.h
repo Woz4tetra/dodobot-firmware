@@ -507,7 +507,7 @@ namespace dodobot_sd
 
     uint16_t max_files = 100;
     String* list_filenames = new String[max_files];
-    uint32_t num_files = 0;
+    uint32_t num_breakout_files = 0;
 
     bool list_breakout_files()
     {
@@ -515,7 +515,7 @@ namespace dodobot_sd
             return false;
         }
         File root = SD.open("/");
-        num_files = 0;
+        num_breakout_files = 0;
         while (true) {
             File entry = root.openNextFile();
             if (!entry) {
@@ -526,15 +526,15 @@ namespace dodobot_sd
                 if (strstr(entry.name(), "BR-") != NULL)
                 {
                     String name = entry.name();
-                    list_filenames[num_files++] = name;
-                    if (num_files >= max_files) {
+                    list_filenames[num_breakout_files++] = name;
+                    if (num_breakout_files >= max_files) {
                         break;
                     }
                 }
             }
             entry.close();
         }
-        return num_files > 0;
+        return num_breakout_files > 0;
     }
 
     uint32_t max_level_size = 100;
@@ -543,11 +543,11 @@ namespace dodobot_sd
 
     String read_breakout_file(String* loaded_name, uint32_t index)
     {
-        if (num_files == 0) {
+        if (num_breakout_files == 0) {
             return "";
         }
-        if (index >= num_files) {
-            index = num_files - 1;
+        if (index >= num_breakout_files) {
+            index = num_breakout_files - 1;
         }
         *loaded_name = list_filenames[index];
         File file = SD.open(list_filenames[index].c_str());
@@ -567,7 +567,7 @@ namespace dodobot_sd
     }
 
     int prev_breakout_index = 100000;
-    String load_breakout_level(String* loaded_name, int requested_index)
+    String load_breakout_level(String* loaded_name, int& requested_index)
     {
         if (requested_index < -1) {  // -1: random index
             return "";
@@ -580,7 +580,7 @@ namespace dodobot_sd
         {
             randomSeed(micros());
             do {
-                requested_index = (int)random(0, num_files);
+                requested_index = (int)random(0, num_breakout_files);
             }
             while (requested_index == prev_breakout_index);
         }

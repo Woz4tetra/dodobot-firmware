@@ -1261,6 +1261,8 @@ namespace dodobot_ui
     class BreakoutController : public ViewController
     {
     public:
+        int current_level_index = -1;
+
         void draw() {
             RETURN_IF_NOT_LOADED;
 
@@ -1283,7 +1285,8 @@ namespace dodobot_ui
         void load_level(int level_index)
         {
             dodobot_breakout::level_config = dodobot_sd::load_breakout_level(&dodobot_breakout::level_name, level_index);
-            dodobot_serial::println_info("level: %s", dodobot_breakout::level_config.c_str());
+            current_level_index = level_index;
+            dodobot_serial::println_info("level: %s, #%d", dodobot_breakout::level_config.c_str(), current_level_index);
         }
 
         void on_unload()  {
@@ -1293,8 +1296,26 @@ namespace dodobot_ui
             tft.fillScreen(ST77XX_BLACK);
         }
 
-        void on_up()  {}
-        void on_down()  {}
+        void on_up()  // load previous level
+        {
+            RETURN_IF_NOT_LOADED;
+            int index = current_level_index - 1;
+            if (index < 0) {
+                index = 0;
+            }
+            load_level(index);
+            dodobot_breakout::enter_event();
+        }
+        void on_down()  // load next level
+        {
+            RETURN_IF_NOT_LOADED;
+            int index = current_level_index + 1;
+            if (index >= (int)dodobot_sd::num_breakout_files) {
+                index = dodobot_sd::num_breakout_files - 1;
+            }
+            load_level(index);
+            dodobot_breakout::enter_event();
+        }
         void on_left() {
             RETURN_IF_NOT_LOADED;
             dodobot_breakout::left_event();

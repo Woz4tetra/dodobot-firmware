@@ -543,8 +543,8 @@ namespace dodobot_breakout
 
 
     BrickCollection* bricks = new BrickCollection(BORDER_X_MIN, BORDER_Y_MIN, 20, 10, ST77XX_WHITE);
-    Paddle* paddle = new Paddle(80, Y_MAX - 5, 40, 5, ST77XX_BLUE);
-    Ball* ball = new Ball(5, ST77XX_RED, 0.25);
+    Paddle* paddle = new Paddle(80, Y_MAX - 5, 40, 5, ST77XX_DARKER_BLUE);
+    Ball* ball = new Ball(5, ST77XX_DARKER_BLUE, 0.25);
 
     bool all_destroyed = false;
     size_t num_strikeouts = 0;
