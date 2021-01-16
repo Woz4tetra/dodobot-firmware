@@ -523,7 +523,7 @@ namespace dodobot_sd
             }
             if (!entry.isDirectory())
             {
-                if (strstr(entry.name(), "BREAK") != NULL)
+                if (strstr(entry.name(), "BR-") != NULL)
                 {
                     String name = entry.name();
                     list_filenames[num_files++] = name;

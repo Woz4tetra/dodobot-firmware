@@ -125,13 +125,14 @@ namespace dodobot_breakout
         float x0, y0;
         uint16_t radius;
         uint16_t color;
+        float bounce_factor;
 
         int16_t x_border_max, x_border_min;
         int16_t y_border_max, y_border_min;
     public:
         float vx, vy;
 
-        Ball(uint16_t r, uint16_t c): radius(r), color(c)
+        Ball(uint16_t r, uint16_t c, float bounce): radius(r), color(c), bounce_factor(bounce)
         {
             reset(0, 0);
             prev_x = x0;
@@ -163,6 +164,15 @@ namespace dodobot_breakout
                 case 'y': vy = -vy; break;
                 case 'b': vx = -vx; vy = -vy; break;
             }
+            vx += rand_bounce();  // add a small random factor to the bounce
+            vy += rand_bounce();
+        }
+
+        float rand_bounce()
+        {
+            randomSeed(micros());
+            long rand_num = random(0, 1000000);
+            return bounce_factor * (float)rand_num / 1000000;
         }
 
         void update_hitbox()
@@ -534,7 +544,7 @@ namespace dodobot_breakout
 
     BrickCollection* bricks = new BrickCollection(BORDER_X_MIN, BORDER_Y_MIN, 20, 10, ST77XX_WHITE);
     Paddle* paddle = new Paddle(80, Y_MAX - 5, 40, 5, ST77XX_BLUE);
-    Ball* ball = new Ball(5, ST77XX_RED);
+    Ball* ball = new Ball(5, ST77XX_RED, 0.25);
 
     bool all_destroyed = false;
     size_t num_strikeouts = 0;
