@@ -14,9 +14,10 @@ namespace dodobot_speed_pid
     // double max_linear_speed_cps = max_rpm * 2.0 * PI * wheel_radius_cm / 60.0;  // cm per s, no load
     // double max_linear_speed_cps = 915.0;
     // double cps_to_cmd = 255.0 / max_linear_speed_cps;
-    double max_linear_speed_tps = 9500.0;  // max speed, with load measured in ticks per second
-    double tps_to_cmd = 255.0 / max_linear_speed_tps;
-    // double min_tps = 700.0;
+    double max_linear_speed_tps_A = 5200.0;  // max speed, with load measured in ticks per second
+    double max_linear_speed_tps_B = 5000.0;
+    double tps_to_cmd_A = 255.0 / max_linear_speed_tps_A;
+    double tps_to_cmd_B = 255.0 / max_linear_speed_tps_B;
     double min_tps = 0.0;
 
     const unsigned int NUM_PID_KS = 8;
@@ -145,8 +146,8 @@ namespace dodobot_speed_pid
         }
     };
 
-    PID motorA_pid("A", min_tps, tps_to_cmd);
-    PID motorB_pid("B", min_tps, tps_to_cmd);
+    PID motorA_pid("A", min_tps, tps_to_cmd_A);
+    PID motorB_pid("B", min_tps, tps_to_cmd_B);
 
     void set_Ks()
     {

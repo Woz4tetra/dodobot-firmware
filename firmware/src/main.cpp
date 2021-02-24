@@ -257,11 +257,13 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     else if (category.equals("network"))
     {
-        CHECK_SEGMENT(serial_obj, 4);  int32_t state = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, 4);  int32_t wifi_state = serial_obj->segment_as_int32();
+        CHECK_SEGMENT(serial_obj, 4);  int32_t hotspot_state = serial_obj->segment_as_int32();
         CHECK_SEGMENT(serial_obj, -1); dodobot::network_info = serial_obj->get_segment();
-        dodobot_serial::println_info("Received network info. Wifi state: %d", state);
+        dodobot_serial::println_info("Received network info. Wifi state: %d. Hotspot state: %d", wifi_state, hotspot_state);
         dodobot_ui::network_screen->draw_network_info();
-        dodobot_ui::network_screen->set_wifi_state((bool)state);
+        dodobot_ui::network_screen->set_wifi_state((bool)wifi_state);
+        dodobot_ui::network_screen->set_hotspot_state((bool)hotspot_state);
     }
     else if (category.equals("netlist"))
     {

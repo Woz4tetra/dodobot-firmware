@@ -1359,6 +1359,20 @@ namespace dodobot_ui
         dodobot_serial::info->write("network", "dd", 0, !wifi_is_on);
     }
 
+    bool hotspot_is_on = true;
+    void toggle_hotspot_callback(String name, int index)
+    {
+        String text = "Hotspot ";
+        if (hotspot_is_on) {
+            text += "off";
+        }
+        else {
+            text += "on";
+        }
+        notify(INFO, text, 1000);
+        dodobot_serial::info->write("network", "dd", 3, !hotspot_is_on);
+    }
+
     void load_connect_screen(String name, int index)
     {
         if (wifi_is_on) {
@@ -1386,6 +1400,7 @@ namespace dodobot_ui
             menu->add_entry("Refresh", refresh_network_info_callback);
             menu->add_entry("Connect", load_connect_screen);
             wifi_entry_index = menu->add_entry("Wifi off", toggle_wifi_callback);
+            hotspot_entry_index = menu->add_entry("Host off", toggle_hotspot_callback);
         }
 
         void set_wifi_state(bool wifi_state)
@@ -1396,6 +1411,20 @@ namespace dodobot_ui
             }
             else {
                 menu->set_entry(wifi_entry_index, "Wifi on");
+            }
+            RETURN_IF_NOT_LOADED;
+            menu->draw();
+            draw_network_info();
+        }
+
+        void set_hotspot_state(bool hotspot_state)
+        {
+            hotspot_is_on = hotspot_state;
+            if (hotspot_is_on) {
+                menu->set_entry(hotspot_entry_index, "Host off");
+            }
+            else {
+                menu->set_entry(hotspot_entry_index, "Host on");
             }
             RETURN_IF_NOT_LOADED;
             menu->draw();
@@ -1483,6 +1512,7 @@ namespace dodobot_ui
     private:
         ScrollingMenu* menu;
         int wifi_entry_index = 0;
+        int hotspot_entry_index = 0;
         int16_t info_row_size = 10;
     };
 
@@ -1758,12 +1788,14 @@ namespace dodobot_ui
         ScrollingMenu* menu;
     };
 
+    const int zero_enc_seq_len = 2;
+    int zero_enc_sequence[breakout_seq_len] = {0, 0};
 
     class DriveSystemController : public ViewWithOverlayController
     {
     public:
         DriveSystemController(ViewController* topbar) : ViewWithOverlayController(topbar) {
-
+            number_sequence = new NumberSequence(num_seq_len);
         }
 
         TopbarController* topbar() {
@@ -1815,6 +1847,22 @@ namespace dodobot_ui
             RETURN_IF_NOT_LOADED;
             drive_robot_forward(0.0);
         }
+        void on_numpad(int number)
+        {
+            RETURN_IF_NOT_LOADED;
+            dodobot_serial::println_info("number: %d", number);
+            if (number_sequence->full()) {
+                number_sequence->deque();
+            }
+            number_sequence->queue(number);
+            if (number_sequence->check_sequence(zero_enc_sequence, zero_enc_seq_len)) {
+                for (int i = 0; i < num_seq_len; i++) {
+                    number_sequence->deque();
+                }
+                // zero encoders
+                dodobot_chassis::reset_encoders();
+            }
+        }
 
         void drive_robot_forward(double speed_tps)   // ticks per s
         {
@@ -1832,6 +1880,9 @@ namespace dodobot_ui
         int16_t drive_column_offset = 80;
         uint16_t row_size = 10;
         double speed_tps = 3000.0;
+
+        int num_seq_len = 10;
+        NumberSequence* number_sequence;
     };
 
     class LinearSystemController : public ViewWithOverlayController

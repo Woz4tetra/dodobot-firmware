@@ -15,7 +15,7 @@ namespace dodobot_tilter
     const int TILTER_PIN = 16;
 
     const int TILTER_DOWN = 10;
-    const int TILTER_UP = 135;
+    const int TILTER_UP = 140;
     int tilter_pos = 0;
 
     bool tilter_attached = false;
