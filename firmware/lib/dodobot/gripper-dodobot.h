@@ -21,9 +21,15 @@ namespace dodobot_gripper
     int OPEN_POS = 0;
     int CLOSE_POS = 180;
     const int DEFAULT_GRIP_THRESHOLD = 40;
+    const int NEAR_POS_THRESHOLD = 30;
+
+    uint32_t fsr_timer = 0;
+    const uint32_t FSR_UPDATE_DELAY_MS = 1;
 
     uint32_t grip_report_timer = 0;
-    const uint32_t GRIP_UPDATE_DELAY_MS = 5;
+    const uint32_t DEFAULT_GRIP_UPDATE_DELAY_MS = 5;
+    const uint32_t SLOW_GRIP_UPDATE_DELAY_MS = 15;
+    uint32_t GRIP_UPDATE_DELAY_MS = DEFAULT_GRIP_UPDATE_DELAY_MS;
 
     int gripper_pos = 0;
     bool gripper_attached = false;
@@ -114,16 +120,32 @@ namespace dodobot_gripper
         if (grip_reached) {
             return;
         }
+
+        if (CURRENT_TIME - fsr_report_timer > FSR_UPDATE_DELAY_MS)
+        {
+            if (fsrs_activated(grip_threshold))
+            {
+                grip_reached = true;
+                report_gripper_pos();
+                return;
+            }
+            fsr_report_timer = CURRENT_TIME;
+        }
+
         if (CURRENT_TIME - grip_report_timer < GRIP_UPDATE_DELAY_MS) {
             return;
         }
         grip_report_timer = CURRENT_TIME;
 
-        if (fsrs_activated(grip_threshold)) {
-            grip_reached = true;
-            report_gripper_pos();
-            return;
+        if (gripper_pos >= pos_threshold - NEAR_POS_THRESHOLD)
+        {
+            // if gripper is its goal, slow down
+            GRIP_UPDATE_DELAY_MS = SLOW_GRIP_UPDATE_DELAY_MS;
         }
+        else {
+            GRIP_UPDATE_DELAY_MS = DEFAULT_GRIP_UPDATE_DELAY_MS;
+        }
+        
         if (gripper_pos >= CLOSE_POS || gripper_pos >= pos_threshold) {
             grip_reached = true;
             report_gripper_pos();
