@@ -26,6 +26,9 @@ namespace dodobot_chassis
     uint32_t prev_commandA_time = 0;
     uint32_t prev_commandB_time = 0;
 
+    uint32_t bumper_timer = 0;
+    const int BUMPER_SAMPLERATE_DELAY_MS = 100;
+
     TB6612 motorA(MOTORA_PWM, MOTORA_DR1, MOTORA_DR2);
     TB6612 motorB(MOTORB_PWM, MOTORB_DR2, MOTORB_DR1);
 
@@ -116,8 +119,8 @@ namespace dodobot_chassis
     }
 
     bool is_obstacle_in_back() {
-        // return is_bump1_active() || is_bump2_active();
-        return bump1_state || bump2_state;
+        // return bump1_state || bump2_state;  // TEMPORARILY DISABLE BUMPERS UNTIL ISSUE IS FIXED
+        return false;
     }
 
     bool is_moving() {
@@ -266,8 +269,8 @@ namespace dodobot_chassis
         if (read_encoders()) {
             report_encoders();
         }
-        if (bump1_changed() || bump2_changed()) {
-            // dodobot_serial::data->write("bump", "udd", CURRENT_TIME, is_bump1_active(), is_bump2_active());
+        if ((CURRENT_TIME - bumper_timer > BUMPER_SAMPLERATE_DELAY_MS) || bump1_changed() || bump2_changed()) {
+            bumper_timer = CURRENT_TIME;
             DODOBOT_SERIAL_WRITE_BOTH("bump", "udd", CURRENT_TIME, bump1_state, bump2_state);
         }
         check_motor_timeout();
