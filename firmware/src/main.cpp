@@ -361,6 +361,10 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
         dodobot_ui::notify(level, text, timeout);
     }
+    else if (category.equals("charge")) {
+        CHECK_SEGMENT(serial_obj, 4);  bool is_charging = (bool)serial_obj->segment_as_int32();
+        dodobot_ui::is_charging = is_charging;
+    }
 }
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)

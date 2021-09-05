@@ -34,7 +34,7 @@ def make_logger(level):
     return logger
 
 
-logger = make_logger(logging.DEBUG)
+logger = make_logger(logging.INFO)
 
 
 class SerialInterface:
@@ -87,7 +87,7 @@ class SerialInterface:
 
         self.initial_connect_delay = 2.0
         self.check_ready_timeout = 10.0
-        self.write_timeout = 10.0
+        self.write_timeout = 1.0
         self.packet_read_timeout = 10.0
         self.packet_ok_timeout = 10.0
 
@@ -168,6 +168,7 @@ class SerialInterface:
         pass
 
     def check_ready(self):
+        logger.info("Checking if device is ready")
         self.write("?", self.ready_keyword)
 
         begin_time = time.time()
@@ -636,18 +637,18 @@ def main():
     pattern_indexer = 0
     try:
         interface.start()
-        interface.write("pix", 1)
-        interface.write_large_test()
+        # interface.write("pix", 1)
+        # interface.write_large_test()
         while True:
             interface.update()
             time.sleep(0.05)
 
-            if time.time() - timer > 1.0:
-                timer = time.time()
-                interface.write("pix", pattern_indexer)
-                pattern_indexer += 1
-                if pattern_indexer > 2:
-                    pattern_indexer = 0
+            # if time.time() - timer > 1.0:
+            #     timer = time.time()
+            #     interface.write("pix", pattern_indexer)
+            #     pattern_indexer += 1
+            #     if pattern_indexer > 2:
+            #         pattern_indexer = 0
     finally:
         interface.stop()
 

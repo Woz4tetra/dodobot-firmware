@@ -625,6 +625,8 @@ namespace dodobot_ui
         prev_date_str_update = CURRENT_TIME;
     }
 
+    bool is_charging = false;
+
     class TopbarController : public ViewController
     {
     public:
@@ -900,20 +902,26 @@ namespace dodobot_ui
 
             dodobot_display::textBounds(current_text, w_mA, h_mA);
             int16_t x_mA = battery_x - w_mA;
-            int16_t y_mA = battery_mA_cy - h_mA / 2 + 1;
+            int16_t y_mA = battery_mA_cy - h_mA / 2 + 2;
 
             int gauge_count = dodobot_power_monitor::power_level();
-            uint16_t battery_color = ST77XX_DARKER_GREEN;
+            uint16_t battery_color;
+            if (is_charging) {
+                battery_color = ST77XX_DARKER_GREEN;
+            }
+            else {
+                battery_color = ST77XX_WHITE;
+            }
             if (gauge_count <= 1) {
                 battery_color = ST77XX_RED;
             }
             uint16_t battery_nub_color = ST77XX_GRAY;
             if (gauge_count == dodobot_power_monitor::max_power_level) {
-                battery_nub_color = ST77XX_DARKER_GREEN;
+                battery_nub_color = battery_color;
             }
 
             int gauge_len = dodobot_power_monitor::max_power_level;
-            int h_gauge = h_V + h_mA + 1;
+            int h_gauge = h_V + h_mA + 2;
 
             batt_nub_y = (height - batt_nub_h) / 2 + 1;
             tft.fillRect(battery_x, batt_nub_y, 4, batt_nub_h, battery_nub_color);
@@ -935,16 +943,39 @@ namespace dodobot_ui
                 else {
                     capacity_color = ST77XX_BLACK;
                 }
-                tft.fillRect(gauge_x, y_V, single_char_w, h_gauge, capacity_color);
+                tft.fillRect(gauge_x, y_V - 1, single_char_w, h_gauge, capacity_color);
             }
 
-            tft.setTextColor(ST77XX_WHITE, ST77XX_WHITE);  // transparent text background
+            uint16_t shadow_color, text_color;
+            if (is_charging) {
+                shadow_color = ST77XX_BLACK;
+                text_color = ST77XX_WHITE;
+            }
+            else {
+                shadow_color = ST77XX_WHITE;
+                text_color = ST77XX_BLACK;
+            }
+            for (int16_t x_offset = -1; x_offset <= 1; x_offset++) {
+                for (int16_t y_offset = -1; y_offset <= 1; y_offset++) {
+                    if (x_offset == 0 && y_offset == 0) {
+                        continue;
+                    }
+                    draw_power_text(x_V + x_offset, y_V + y_offset, x_mA + x_offset, y_mA + y_offset, voltage_text, current_text, shadow_color);
+                }
+            }
+            draw_power_text(x_V, y_V, x_mA, y_mA, voltage_text, current_text, text_color);
+            
+            tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+        }
+
+        void draw_power_text(int16_t x_V, int16_t y_V, int16_t x_mA, int16_t y_mA, String voltage_text, String current_text, uint16_t color)
+        {
+            tft.setTextColor(color, color);  // transparent text background
             tft.setCursor(x_V, y_V);
             tft.print(voltage_text);
 
             tft.setCursor(x_mA, y_mA);
             tft.print(current_text);
-            tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
         }
 
         void update_usb_state()

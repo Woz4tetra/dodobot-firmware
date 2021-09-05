@@ -461,12 +461,17 @@ void DodobotSerial::parse_packet()
     }
 
     // extract checksum from packet
-    char recv_checksum_array[2];
+    char recv_checksum_array[3];
     memcpy(recv_checksum_array, recv_char_buffer + read_packet_len - 2, 2);
+    recv_checksum_array[2] = '\0';
     uint8_t recv_checksum = strtol(recv_checksum_array, NULL, 16);
 
     if (calc_checksum != recv_checksum) {
         // checksum failed
+        DODOBOT_SERIAL.print("Checksums don't match. ");
+        DODOBOT_SERIAL.print(calc_checksum, HEX);
+        DODOBOT_SERIAL.print(" != ");
+        DODOBOT_SERIAL.println(recv_checksum, HEX);
         write_txrx(4);  // error 4: checksums don't match
         read_packet_num++;
         return;
