@@ -34,17 +34,14 @@ def make_logger(level):
     return logger
 
 
-logger = make_logger(logging.INFO)
+logger = make_logger(logging.DEBUG)
 
 
 class SerialInterface:
     def __init__(self, address, baud):
-        self.device = serial.Serial(
-            address,
-            baudrate=baud,
-            timeout=5.0,
-            write_timeout=5.0
-        )
+        self.address = address
+        self.baud = baud
+        self.device = None
 
         self.should_stop = False
         self.serial_device_paused = False
@@ -72,8 +69,8 @@ class SerialInterface:
         self.PACKET_SEP = b'\t'
         self.PACKET_SEP_STR = '\t'
 
-        self.max_packet_len = 2096
-        self.max_segment_len = 2000
+        self.max_packet_len = 128
+        self.max_segment_len = 64
 
         self.ready_state = {
             "name": "",
@@ -88,9 +85,11 @@ class SerialInterface:
         self.parsed_data = []
         self.recv_time = 0.0
 
-        self.check_ready_timeout = 5.0
-        self.write_timeout = 2.0
-        self.packet_read_timeout = 2.0
+        self.initial_connect_delay = 2.0
+        self.check_ready_timeout = 10.0
+        self.write_timeout = 10.0
+        self.packet_read_timeout = 10.0
+        self.packet_ok_timeout = 10.0
 
         self.ready_keyword = "dodobot"
 
@@ -115,7 +114,6 @@ class SerialInterface:
         self.is_active = False
 
         self.wait_for_ok_reqs = {}
-        self.packet_ok_timeout = 1.0
 
         self._sd_card_directory = {}
         self._sd_card_directory_root = ""
@@ -124,6 +122,14 @@ class SerialInterface:
     def start(self):
         logger.info("Starting serial interface")
 
+        self.device = serial.Serial(
+            self.address,
+            baudrate=self.baud,
+            timeout=5.0,
+            write_timeout=5.0
+        )
+        time.sleep(self.initial_connect_delay)
+
         self.read_task.start()
         logger.info("Read thread started")
         time.sleep(1.0)
@@ -131,7 +137,7 @@ class SerialInterface:
         self.check_ready()
 
     def process_packet(self, category):
-        if category == "txrx" and self.parse_segments("dd"):
+        if category == "txrx" and self.parse_segments("du"):
             packet_num = self.parsed_data[0]
             error_code = self.parsed_data[1]
 
@@ -250,7 +256,8 @@ class SerialInterface:
             time.sleep(0.01)
 
     def write_txrx(self, code):
-        self.write("txrx", self.read_packet_num, code)
+        pass
+        # self.write("txrx", self.read_packet_num, code)
 
     def write_large(self, name, destination, arg):
         assert type(arg) == str or type(arg) == bytes
@@ -433,7 +440,7 @@ class SerialInterface:
         calc_checksum = 0
         for val in buffer[:-2]:
             calc_checksum += val
-        calc_checksum &= 255
+        calc_checksum &= 0xff
 
         self.read_buffer = buffer
         # try:
@@ -493,7 +500,15 @@ class SerialInterface:
             self.write_txrx(6)  # failed to find category segment
             self.read_packet_num += 1
             return False
-        logger.debug("Category %s found in %s" % (category, str(self.read_buffer)))
+        
+        if len(category) == 0:
+            logger.error("Category segment is empty: %s, %s" % (
+                repr(self.current_segment), repr(self.read_buffer)))
+            self.write_txrx(6)  # failed to find category segment
+            self.read_packet_num += 1
+            return False
+        
+        logger.debug("Category '%s' found in %s" % (category, str(self.read_buffer)))
 
         try:
             self.process_packet(category)
@@ -550,7 +565,10 @@ class SerialInterface:
 
     def log_packet_error_code(self, error_code, packet_num):
         logger.warning("Packet %s returned an error:" % packet_num)
-        logger.warning("\t%s" % self.packet_error_codes[error_code])
+        if error_code in self.packet_error_codes:
+            logger.warning("\t%s" % self.packet_error_codes[error_code])
+        else:
+            logger.warning("\tUnknown error code: %s" % error_code)
 
     def set_start_time(self, time_ms):
         self.device_start_time = time.time()
@@ -594,26 +612,42 @@ class PowerBoxInterface(SerialInterface):
                     load_voltage
                 )
             )
+    
+    def write_large_test(self):
+        data = b""
+        total_checksum = 0
+        for counter in range(1024):
+            value = counter % 0x95
+            char = int.to_bytes(value, 1, 'big', signed=False)
+            data += char
+            total_checksum += value
+        total_checksum &= 0xff
+        data += b"%02x" % total_checksum
+
+        logger.info("Total checksum is %s" % total_checksum)
+
+        self.write_large("large-test", "something", data)
 
 
 def main():
-    interface = PowerBoxInterface("/dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_018D432A-if00-port0", 115200)
+    interface = PowerBoxInterface("/dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_018D432A-if00-port0", 38400)
 
-    # timer = time.time()
-    # pattern_indexer = 0
+    timer = time.time()
+    pattern_indexer = 0
     try:
         interface.start()
         interface.write("pix", 1)
+        interface.write_large_test()
         while True:
             interface.update()
             time.sleep(0.05)
 
-            # if time.time() - timer > 1.0:
-            #     timer = time.time()
-            #     interface.write("pix", pattern_indexer)
-            #     pattern_indexer += 1
-            #     if pattern_indexer > 2:
-            #         pattern_indexer = 0
+            if time.time() - timer > 1.0:
+                timer = time.time()
+                interface.write("pix", pattern_indexer)
+                pattern_indexer += 1
+                if pattern_indexer > 2:
+                    pattern_indexer = 0
     finally:
         interface.stop()
 

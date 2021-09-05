@@ -8,8 +8,8 @@
 #define PACKET_START_1 '\x13'
 #define PACKET_STOP '\n'
 #define PACKET_SEGMENT_SEPARATOR '\t'
-#define MAX_PACKET_LEN  196
-#define MAX_SEGMENT_LEN  100
+#define MAX_PACKET_LEN  128
+#define MAX_SEGMENT_LEN  64
 
 #define CHECK_SEGMENT(__INTERFACE_OBJ__, __GET_SEGMENT_CALL__)  if (!__GET_SEGMENT_CALL__) {  \
     DODOBOT_SERIAL.print("Not enough segments supplied for segment #");  \
@@ -49,6 +49,8 @@ private:
     bool make_packet(String name, const char *formats, va_list args); 
 
     void parse_packet();
+
+    void write_txrx(uint32_t code);
 
     bool next_segment(int length);
     bool next_segment();

@@ -1,28 +1,28 @@
 #include <dodobot_serial/dodobot_serial.h>
 
-union
+typedef union uint16_union
 {
     uint16_t integer;
     unsigned char byte[2];
-} uint16_union;
+} uint16_union_t;
 
-union
+typedef union uint32_union
 {
     uint32_t integer;
     unsigned char byte[4];
-} uint32_union;
+} uint32_union_t;
 
-union
+typedef union int32_union
 {
     int32_t integer;
     unsigned char byte[4];
-} int32_union;
+} int32_union_t;
 
-union
+typedef union float_union
 {
     float floating_point;
     unsigned char byte[8];
-} float_union;
+} float_union_t;
 
 
 DodobotSerial::DodobotSerial(void (*read_callback)(DodobotSerial*, String))
@@ -48,6 +48,10 @@ bool DodobotSerial::write_large(String name, String destination, uint32_t segmen
     // assumed that the first two bytes of buffer contain the length of buffer
     write(name, "sddx", destination.c_str(), segment_num, num_segments, buffer);
     return wait_for_ok();
+}
+
+void DodobotSerial::write_txrx(uint32_t code)  {
+    write("txrx", "du", read_packet_num, code);
 }
 
 bool DodobotSerial::wait_for_ok()
@@ -152,7 +156,7 @@ void DodobotSerial::read()
     while (true)
     {
         if (millis() - start_wait_time > PACKET_STOP_TIMEOUT) {
-            write("txrx", "dd", read_packet_num, 11);  // error 11: packet receive timed out
+            write_txrx(11);  // error 11: packet receive timed out
             break;
         }
         if (!DODOBOT_SERIAL.available()) {
@@ -178,7 +182,7 @@ void DodobotSerial::read()
             if (c != PACKET_STOP)
             {
                 recv_char_buffer[recv_char_index] = '\0';
-                write("txrx", "dd", read_packet_num, 9);  // error 9: packet didn't end properly
+                write_txrx(9);  // error 9: packet didn't end properly
                 return;
             }
             break;
@@ -210,9 +214,10 @@ bool DodobotSerial::next_segment(int length)
     }
     if (length < 0) {
         // assume first 2 bytes contain the length
-        uint16_union.byte[1] = recv_char_buffer[read_packet_index++];
-        uint16_union.byte[0] = recv_char_buffer[read_packet_index++];
-        length = (int)uint16_union.integer;
+        uint16_union_t union_segment_len;
+        union_segment_len.byte[1] = recv_char_buffer[read_packet_index++];
+        union_segment_len.byte[0] = recv_char_buffer[read_packet_index++];
+        length = (int)union_segment_len.integer;
     }
     if (length > MAX_SEGMENT_LEN)
     {
@@ -286,39 +291,43 @@ int DodobotSerial::get_segment_num() {
 bool DodobotSerial::segment_as_uint16(uint16_t& result)
 {
     if (!next_segment(2))  { return false; }
-    uint16_union.byte[1] = segment[0];
-    uint16_union.byte[0] = segment[1];
-    result = uint16_union.integer;
+    uint16_union_t union_data;
+    union_data.byte[1] = segment[0];
+    union_data.byte[0] = segment[1];
+    result = union_data.integer;
     return true;
 }
 
 bool DodobotSerial::segment_as_uint32(uint32_t& result)
 {
     if (!next_segment(4))  { return false; }
+    uint32_union_t union_data;
     for (unsigned short i = 0; i < 4; i++) {
-        uint32_union.byte[3 - i] = segment[i];
+        union_data.byte[3 - i] = segment[i];
     }
-    result = uint32_union.integer;
+    result = union_data.integer;
     return true;
 }
 
 bool DodobotSerial::segment_as_int32(int32_t& result)
 {
     if (!next_segment(4))  { return false; }
+    int32_union_t union_data;
     for (unsigned short i = 0; i < 4; i++) {
-        int32_union.byte[3 - i] = segment[i];
+        union_data.byte[3 - i] = segment[i];
     }
-    result = int32_union.integer;
+    result = union_data.integer;
     return true;
 }
 
 bool DodobotSerial::segment_as_float(float& result)
 {
     if (!next_segment(4))  { return false; }
+    float_union_t union_data;
     for (unsigned short i = 0; i < 4; i++) {
-        float_union.byte[i] = segment[i];
+        union_data.byte[i] = segment[i];
     }
-    result = float_union.floating_point;
+    result = union_data.floating_point;
     return true;
 }
 
@@ -347,9 +356,10 @@ bool DodobotSerial::make_packet(String name, const char *formats, va_list args)
     write_char_buffer[1] = PACKET_START_1;
     write_char_index = 4;  // bytes 2 and 3 are for packet length
 
-    uint32_union.integer = write_packet_num;
+    uint32_union_t union_packet_num;
+    union_packet_num.integer = write_packet_num;
     for (unsigned short i = 0; i < 4; i++) {
-        write_char_buffer[write_char_index++] = uint32_union.byte[3 - i];
+        write_char_buffer[write_char_index++] = union_packet_num.byte[3 - i];
     }
     sprintf(write_char_buffer + write_char_index, "%s", name.c_str());
     write_char_index += name.length();
@@ -358,47 +368,52 @@ bool DodobotSerial::make_packet(String name, const char *formats, va_list args)
     while (*formats != '\0')
     {
         if (*formats == 'd') {
-            int32_union.integer = va_arg(args, int32_t);
+            int32_union_t union_data;
+            union_data.integer = va_arg(args, int32_t);
             for (unsigned short i = 0; i < 4; i++) {
-                write_char_buffer[write_char_index++] = int32_union.byte[3 - i];
+                write_char_buffer[write_char_index++] = union_data.byte[3 - i];
             }
         }
         else if (*formats == 'u') {
-            uint32_union.integer = va_arg(args, uint32_t);
+            uint32_union_t union_data;
+            union_data.integer = va_arg(args, uint32_t);
             for (unsigned short i = 0; i < 4; i++) {
-                write_char_buffer[write_char_index++] = uint32_union.byte[3 - i];
+                write_char_buffer[write_char_index++] = union_data.byte[3 - i];
             }
         }
         else if (*formats == 's') {
             char *s = va_arg(args, char*);
-            uint16_union.integer = (uint16_t)strlen(s);
-            write_char_buffer[write_char_index++] = uint16_union.byte[1];
-            write_char_buffer[write_char_index++] = uint16_union.byte[0];
+            uint16_union_t union_str_len;
+            union_str_len.integer = (uint16_t)strlen(s);
+            write_char_buffer[write_char_index++] = union_str_len.byte[1];
+            write_char_buffer[write_char_index++] = union_str_len.byte[0];
             sprintf(write_char_buffer + write_char_index, "%s", s);
             write_char_index += strlen(s);
         }
         else if (*formats == 'x') {
             char *s = va_arg(args, char*);
-            uint16_union.byte[1] = s[0];
-            uint16_union.byte[0] = s[1];
-            if (uint16_union.integer > MAX_SEGMENT_LEN) {
-                write("txrx", "dd", read_packet_num, 10);  // error 10: segment is too long
+            uint16_union_t union_str_len;
+            union_str_len.byte[1] = s[0];
+            union_str_len.byte[0] = s[1];
+            if (union_str_len.integer > MAX_SEGMENT_LEN) {
+                write_txrx(10);  // error 10: segment is too long
                 return false;
             }
             write_char_buffer[write_char_index++] = s[0];
             write_char_buffer[write_char_index++] = s[1];
-            for (size_t i = 0; i < uint16_union.integer; i++) {
+            for (size_t i = 0; i < union_str_len.integer; i++) {
                 write_char_buffer[write_char_index++] = s[2 + i];
             }
         }
         else if (*formats == 'f') {
-            float_union.floating_point = (float)va_arg(args, double);
+            float_union_t union_data;
+            union_data.floating_point = (float)va_arg(args, double);
             for (unsigned short i = 0; i < 4; i++) {
-                write_char_buffer[write_char_index++] = float_union.byte[i];
+                write_char_buffer[write_char_index++] = union_data.byte[i];
             }
         }
         else {
-            write("txrx", "dd", read_packet_num, 8);  // error 8: invalid format
+            write_txrx(8);  // error 8: invalid format
             return false;
         }
         ++formats;
@@ -416,9 +431,10 @@ bool DodobotSerial::make_packet(String name, const char *formats, va_list args)
     uint16_t packet_len = write_char_index - 5;  // subtract start, length, and stop bytes
 
     // insert packet length
-    uint16_union.integer = packet_len;
-    write_char_buffer[2] = uint16_union.byte[1];
-    write_char_buffer[3] = uint16_union.byte[0];
+    uint16_union_t union_packet_len;
+    union_packet_len.integer = packet_len;
+    write_char_buffer[2] = union_packet_len.byte[1];
+    write_char_buffer[3] = union_packet_len.byte[0];
 
     return true;
 }
@@ -432,7 +448,7 @@ void DodobotSerial::parse_packet()
     // \t + at least 1 category char
     // 2 chars for checksum
     if (read_packet_len < 5) {
-        write("txrx", "dd", read_packet_num, 3);  // error 3: packet is too short
+        write_txrx(3);  // error 3: packet is too short
         read_packet_num++;
         return;
     }
@@ -451,7 +467,7 @@ void DodobotSerial::parse_packet()
 
     if (calc_checksum != recv_checksum) {
         // checksum failed
-        write("txrx", "dd", read_packet_num, 4);  // error 4: checksums don't match
+        write_txrx(4);  // error 4: checksums don't match
         read_packet_num++;
         return;
     }
@@ -459,7 +475,7 @@ void DodobotSerial::parse_packet()
     uint32_t recv_packet_num;
     if (!segment_as_uint32(recv_packet_num)) {
         // failed to find packet num segment
-        write("txrx", "dd", read_packet_num, 5);  // error 5: packet count segment not found
+        write_txrx(5);  // error 5: packet count segment not found
         read_packet_num++;
         return;
     }
@@ -467,24 +483,25 @@ void DodobotSerial::parse_packet()
     if (recv_packet_num != read_packet_num) {
         // this is considered a warning since it isn't critical for packet
         // numbers to be in sync
-        write("txrx", "dd", read_packet_num, 6);  // error 6: packet counts not synchronized
+        write_txrx(6);  // error 6: packet counts not synchronized
         read_packet_num = recv_packet_num;
     }
 
     // find category segment
     if (!next_segment()) {
-        write("txrx", "dd", read_packet_num, 7);  // error 7: failed to find category segment
+        write_txrx(7);  // error 7: failed to find category segment
         read_packet_num++;
         return;
     }
     String category = String(segment);
 
     if (category == "txrx") {
+        // process txrx segments and do nothing
         segment_as_uint32(recv_txrx_packet_num) && segment_as_uint32(recv_txrx_code);
     }
     else {
         (*read_callback)(this, category);
-        write("txrx", "dd", read_packet_num, 0);  // 0: no error
+        write_txrx(0);  // 0: no error
     }
     read_packet_num++;
 }
