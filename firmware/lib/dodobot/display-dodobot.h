@@ -45,6 +45,9 @@ namespace dodobot_display
 
     void set_display_brightness(int brightness)
     {
+        if (tft_brightness == brightness) {
+            return;
+        }
         analogWrite(TFT_LITE, brightness);
         tft_brightness = brightness;
     }

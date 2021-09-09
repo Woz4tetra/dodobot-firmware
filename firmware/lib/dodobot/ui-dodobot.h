@@ -27,6 +27,9 @@ namespace dodobot_ui
     uint32_t UI_DELAY_MS = UI_DELAY_MS_DEFAULT;
     uint32_t ui_timer = 0;
 
+    uint32_t UI_BRIGHTNESS_TIMEOUT = 300000;
+    uint32_t ui_sleep_brightness_timer = 0;
+
     enum EventType {
         UP_EVENT,
         DOWN_EVENT,
@@ -2335,12 +2338,32 @@ namespace dodobot_ui
         load("splash");
         dodobot_serial::println_info("UI ready");
     }
+
+    void dim_display() {
+        dodobot_display::set_display_brightness(0);
+    }
+
+    void wake_display() {
+        dodobot_display::set_display_brightness(255);
+    }
+
+    void reset_display_brightness_timer() {
+        ui_sleep_brightness_timer = CURRENT_TIME;
+    }
+
     void draw()
     {
         if (CURRENT_TIME - ui_timer < UI_DELAY_MS) {
             return;
         }
         ui_timer = CURRENT_TIME;
+
+        if (CURRENT_TIME - ui_sleep_brightness_timer > UI_BRIGHTNESS_TIMEOUT) {
+            dim_display();
+        }
+        else {
+            wake_display();
+        }
 
         if (current_view == NULL)  return;
         current_view->draw();

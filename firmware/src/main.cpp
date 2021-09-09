@@ -60,6 +60,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     // get_ready
     if (category.equals("?")) {
+        dodobot_ui::reset_display_brightness_timer();
         CHECK_SEGMENT(serial_obj, -1);
         if (serial_obj->get_segment().equals("dodobot")) {
             dodobot_serial::println_info("Received ready signal!");
@@ -72,6 +73,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     // toggle reporting
     else if (category.equals("[]")) {
+        dodobot_ui::reset_display_brightness_timer();
         CHECK_SEGMENT(serial_obj, 4);
         int reporting_state = serial_obj->segment_as_int32();
         dodobot_serial::println_info("toggle_reporting %d", reporting_state);
@@ -88,6 +90,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     // toggle motors active
     else if (category.equals("<>")) {
+        dodobot_ui::reset_display_brightness_timer();
         CHECK_SEGMENT(serial_obj, 4);
         int active_state = serial_obj->segment_as_int32();
         // dodobot_serial::println_info("toggle_active %d", active_state);
@@ -116,6 +119,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     // set gripper
     else if (category.equals("grip")) {
+        dodobot_ui::reset_display_brightness_timer();
         CHECK_SEGMENT(serial_obj, 4);
         int gripper_state = serial_obj->segment_as_int32();
         int grip_threshold = -1;
@@ -160,6 +164,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     // set tilter
     else if (category.equals("tilt")) {
+        dodobot_ui::reset_display_brightness_timer();
         CHECK_SEGMENT(serial_obj, 4);
         int tilt_state = serial_obj->segment_as_int32();
         int tilt_pos = 0;
@@ -179,6 +184,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     // set linear
     else if (category.equals("linear")) {
+        dodobot_ui::reset_display_brightness_timer();
         CHECK_SEGMENT(serial_obj, 4);
         int linear_state = serial_obj->segment_as_int32();
         int linear_value = 0;
@@ -232,6 +238,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
     // set chassis speed
     else if (category.equals("drive")) {
+        dodobot_ui::reset_display_brightness_timer();
         CHECK_SEGMENT(serial_obj, 4); float setpointA = serial_obj->segment_as_float();
         CHECK_SEGMENT(serial_obj, 4); float setpointB = serial_obj->segment_as_float();
         dodobot_speed_pid::update_setpointA(setpointA);
@@ -369,6 +376,7 @@ void dodobot_serial::packet_callback(DodobotSerial* serial_obj, String category)
 
 void dodobot_ir_remote::callback_ir(uint8_t remote_type, uint16_t value)
 {
+    dodobot_ui::reset_display_brightness_timer();
     switch (value) {
         case 0x00ff: dodobot_serial::println_info("IR: VOL-"); break;  // VOL-
         case 0x807f:
