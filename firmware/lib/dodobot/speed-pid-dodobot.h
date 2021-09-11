@@ -19,6 +19,7 @@ namespace dodobot_speed_pid
     double tps_to_cmd_A = 255.0 / max_linear_speed_tps_A;
     double tps_to_cmd_B = 255.0 / max_linear_speed_tps_B;
     double min_tps = 0.0;
+    double max_error_sum = 500000.0;
 
     const unsigned int NUM_PID_KS = 8;
     double* pid_Ks = new double[NUM_PID_KS];
@@ -41,6 +42,7 @@ namespace dodobot_speed_pid
         double deadzone;
         double target;
         double error_sum, prev_error;
+        double error_sum_clamp;
         double feedforward;
         uint32_t prev_setpoint_time;
         uint32_t current_time, prev_update_time;
@@ -51,10 +53,11 @@ namespace dodobot_speed_pid
     public:
         double Kp, Ki, Kd;
 
-        PID(String _name, double _deadzone, double _K_ff):
+        PID(String _name, double _deadzone, double _K_ff, double _error_sum_clamp):
             name(_name),
             K_ff(_K_ff),
-            deadzone(_deadzone)
+            deadzone(_deadzone),
+            error_sum_clamp(_error_sum_clamp)
         {
             target = 0.0;
             error_sum = 0.0;
@@ -107,7 +110,7 @@ namespace dodobot_speed_pid
         int compute(double measurement)
         {
             if (!is_timed_out && CURRENT_TIME - prev_setpoint_time > PID_COMMAND_TIMEOUT_MS) {
-                set_target(0.0);
+                reset();
                 is_timed_out = true;
                 dodobot_serial::println_info("PID '%s' setpoint timed out", name.c_str());
             }
@@ -139,6 +142,9 @@ namespace dodobot_speed_pid
             if (Ki != 0.0) {
                 out += Ki * error_sum * dt;
                 error_sum += error;
+                if (abs(error_sum) > error_sum_clamp) {
+                    error_sum = sign(error_sum) * error_sum_clamp;
+                }
             }
             out += feedforward;
 
@@ -146,8 +152,8 @@ namespace dodobot_speed_pid
         }
     };
 
-    PID motorA_pid("A", min_tps, tps_to_cmd_A);
-    PID motorB_pid("B", min_tps, tps_to_cmd_B);
+    PID motorA_pid("A", min_tps, tps_to_cmd_A, max_error_sum);
+    PID motorB_pid("B", min_tps, tps_to_cmd_B, max_error_sum);
 
     void set_Ks()
     {
